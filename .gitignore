@@ -1,0 +1,6 @@
+
+*.swp
+
+\.ftpconfig
+
+node_modules/
