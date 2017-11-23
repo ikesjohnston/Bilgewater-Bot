@@ -1,5 +1,5 @@
-![alt text](https://i.imgur.com/HRm3cYX.png "I got what you need!")
-# Bilgewater-Bot
+
+# Bilgewater-Bot ![alt text](https://i.imgur.com/HRm3cYX.png "I got what you need!")
 Discord bot for displaying World of Warcraft statistics and information.
 
 ### Configuration
