@@ -1,3 +1,4 @@
+![alt text](https://i.imgur.com/zjBxppj.png "I ot what you need!")
 # Bilgewater-Bot
 Discord bot for displaying World of Warcraft statistics and information.
 
