@@ -18,6 +18,8 @@ To configure the bot, create a file in the root project directory named "config.
 
 ### Commands
 
-wow <character> <realm> <region> - Looks up a character and displays some basic stats
+toon <character> <realm> <region> - Looks up a character and displays some basic stats
+
+mp <region> - Displays mythic+ affix details and leaderboards for the current week
 
 setgame - Sets the game that the bot is listed as playing, only the bot owner can use this command
