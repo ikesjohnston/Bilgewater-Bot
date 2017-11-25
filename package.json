@@ -1,14 +1,14 @@
 {
-  "name": "bobby-b-bot",
+  "name": "Bilgewater Bot",
   "version": "1.0.0",
-  "description": "IN AN OPEN FIELD, NED!!!",
+  "description": "World of Warcraft Discord Bot",
   "main": "bot.js",
   "author": "Ike Johnston",
   "dependencies": {
     "blizzard.js": "^2.0.3",
     "chalk": "^2.3.0",
     "discord.js": "^11.2.1",
-    "overwatch-js": "^1.6.0",
+    "request": "^2.81.0",
     "return-deep-diffs": "^0.2.11",
     "winston": "^2.4.0"
   }

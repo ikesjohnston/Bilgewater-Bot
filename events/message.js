@@ -12,6 +12,5 @@ module.exports = message => {
 		cmdFile.run(client, message, args);
 	} catch (err) {
 		console.log(`Command ${command} failed\n${err.stack}`);
-		message.channel.send("```Valid commands: \n\n/wow```");
 	}
 };

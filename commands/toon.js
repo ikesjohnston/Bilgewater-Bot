@@ -3,6 +3,7 @@ const winston = require('winston');
 const chalk = require('chalk');
 const blizzard = require('blizzard.js').initialize({ apikey: config.battlenet });
 const util = require('util');
+const request = require('request');
 
 const bilgewater_icon_url = 'https://i.imgur.com/zjBxppj.png';
 const char_render_url = 'https://render-%s.worldofwarcraft.com/character/%s';
@@ -10,16 +11,37 @@ const icon_render_url = 'https://render-%s.worldofwarcraft.com/icons/%d/%s.jpg';
 
 const icon_size = 56;
 
+const request_raiderio = 'https://raider.io/api/v1/characters/profile?region=%s&realm=%s&name=%s&fields=mythic_plus_weekly_highest_level_runs';
+
+var character_name;
+var realm_name;
+var region_name;
+
 exports.run = function(client, message, args) {
   if(args.length != 3) {
-    message.channel.send("```Usage: \n\n/wow <character> <realm> <region> \n\nValid regions are us, eu, kr, and tw.```");
+    message.channel.send(`Usage: \n\n${config.prefix}toon <character> <realm> <region> \n\nValid regions are us, eu, kr, and tw.`);
     return;
   }
 
-  const character_name = args[0];
-  const realm_name = args[1];
-  const region_name = args[2];
+  character_name = args[0];
+  realm_name = args[1];
+  region_name = args[2];
 
+  var request_raiderio_char = util.format(request_raiderio, region_name, realm_name, character_name);
+  request(request_raiderio_char, { json: true }, (err, res, body) => {
+    if (err) {
+      var owner = client.users.get(config.ownerID);
+      message.channel.send(`Something's not quite right... Complain to ${owner}`);
+      return console.log(err);
+    }
+
+    var response_raiderio = res.body;
+    buildResponse(client, message, args, response_raiderio);
+  });
+};
+
+function buildResponse(client, message, args, response_raiderio)
+{
   var races;
   blizzard.wow.data('character-races', { origin: region_name })
   .then(response => {
@@ -32,10 +54,10 @@ exports.run = function(client, message, args) {
     classes = response.data.classes;
   });
 
-  blizzard.wow.character(['profile', 'stats', 'talents', 'items', 'progression', 'pvp', 'titles'], { origin: region_name, realm: realm_name, name: character_name }).then(response => {
-
-    const char_url_thumbnail = util.format(char_render_url, region_name, response.data.thumbnail);
-    const char_url_main = char_url_thumbnail.replace('avatar', 'main');
+  blizzard.wow.character(['profile', 'stats', 'talents', 'items', 'progression', 'pvp', 'titles'], { origin: region_name, realm: realm_name, name: character_name })
+  .then(response => {
+    var char_url_thumbnail = util.format(char_render_url, region_name, response.data.thumbnail);
+    var char_url_main = char_url_thumbnail.replace('avatar', 'main');
 
     // Blue embed color for alliance, red for horde
     var embed_color = 0x004fce;
@@ -43,7 +65,7 @@ exports.run = function(client, message, args) {
       embed_color = 0xad0505;
     }
 
-    const raids = response.data.progression.raids;
+    var raids = response.data.progression.raids;
 
     var raid_0 = raids[raids.length - 1];
     var raid_0_kills_lfr = 0;
@@ -94,7 +116,7 @@ exports.run = function(client, message, args) {
     var raid_2_kills_n = 0;
     var raid_2_kills_h = 0;
     var raid_2_kills_m = 0;
-    var bosses = raid_2.bosses;
+    bosses = raid_2.bosses;
 
     for(i = 0; i < bosses.length; i++) {
       if(bosses[i].lfrKills > 0) {
@@ -111,7 +133,7 @@ exports.run = function(client, message, args) {
       }
     }
 
-    const char_level = response.data.level;
+    var char_level = response.data.level;
 
     var char_race;
     for(i = 0; i < races.length; i++)
@@ -133,15 +155,15 @@ exports.run = function(client, message, args) {
       }
     }
 
-    const stats = response.data.stats;
-    const power_name = stats.powerType;
-    const power_name_cap = power_name[0].toUpperCase() + power_name.slice(1);
+    var stats = response.data.stats;
+    var power_name = stats.powerType;
+    var power_name_cap = power_name[0].toUpperCase() + power_name.slice(1);
 
-    const items = response.data.items;
+    var items = response.data.items;
 
-    const pvp_brackets = response.data.pvp.brackets;
+    var pvp_brackets = response.data.pvp.brackets;
 
-    const titles = response.data.titles;
+    var titles = response.data.titles;
     var title_selected = '%s';
     for(i = 0; i < titles.length; i++)
     {
@@ -152,9 +174,9 @@ exports.run = function(client, message, args) {
       }
     }
 
-    const char_name = title_selected.replace("%s", response.data.name);
+    var char_name = title_selected.replace("%s", response.data.name);
 
-    const talents = response.data.talents;
+    var talents = response.data.talents;
     var current_spec;
     for(i = 0; i < talents.length; i++)
     {
@@ -165,8 +187,8 @@ exports.run = function(client, message, args) {
       }
     }
 
-    const spec_role = current_spec.spec.role;
-    const spec_icon_url = util.format(icon_render_url, region_name, icon_size, current_spec.spec.icon);
+    var spec_role = current_spec.spec.role;
+    var spec_icon_url = util.format(icon_render_url, region_name, icon_size, current_spec.spec.icon);
 
     var main_stat = "Intellect";
     var main_stat_value = stats.int;
@@ -197,6 +219,18 @@ exports.run = function(client, message, args) {
       vers_bonus = stats.versatilityDamageTakenBonus;
     }
 
+    var mp_weekly_bests = response_raiderio.mythic_plus_weekly_highest_level_runs;
+    var weekly_best_report;
+    if(mp_weekly_bests.length == 0)
+    {
+      weekly_best_report = 'No Mythic+ dungeons \ncompleted this week.';
+    }
+    else {
+      var weekly_best = mp_weekly_bests[0];
+      var weekly_best_time = msToTime(weekly_best.clear_time_ms);
+      weekly_best_result = upgradesToResult(weekly_best.num_keystone_upgrades);
+      weekly_best_report = `[+${weekly_best.mythic_level} ${weekly_best.dungeon}](${weekly_best.url})\nTime: ${weekly_best_time}\nResult: ${weekly_best_result}\nScore: ${weekly_best.score}`;
+    }
     message.channel.send({embed: {
        color: embed_color,
        title: `Level ${char_level} ${char_race.name} ${current_spec.spec.name} ${char_class.name}\n`,
@@ -229,7 +263,7 @@ exports.run = function(client, message, args) {
          },
          {
            name: "Mythic+",
-           value: `Under Construction`,
+           value: `**Weekly Best:**\n${weekly_best_report}`,
            inline: true
          }
        ],
@@ -245,7 +279,25 @@ exports.run = function(client, message, args) {
     //console.log(response.data);
   }).catch(error => {
 
-     winston.log('error', chalk.bgRed(`wow: ${error}\n ${error.stack}`));
+     winston.log('error', chalk.bgRed(`toon: ${error}\n ${error.stack}`));
      message.channel.send("```Character not found. Check spelling and region.```");
    });
-};
+}
+
+function upgradesToResult(keystoneUpgrades)
+{
+  if(keystoneUpgrades < 1)
+    return "Depleted";
+  else
+    return `+${keystoneUpgrades}`;
+}
+
+function msToTime(duration)
+{
+  var seconds = parseInt((duration/1000)%60);
+  var minutes = parseInt((duration/(1000*60))%60);
+
+  seconds = (seconds < 10) ? "0" + seconds : seconds;
+
+  return minutes + "m " + seconds + "s";
+}
