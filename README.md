@@ -20,7 +20,7 @@ To configure the bot, create a file in the root project directory named "config.
 
 >help - Displays available commands
 
->toon <character> <realm> -r <region> - Looks up a character and displays some basic stats
+>toon \<character\> <realm> -r <region> - Looks up a character and displays some basic stats
 
 >mp <region> - Displays mythic+ affix details and leaderboards for the current week
    
