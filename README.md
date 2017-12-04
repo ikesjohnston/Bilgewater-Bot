@@ -9,17 +9,19 @@ To configure the bot, create a file in the root project directory named "config.
 ```
 {
    "token": "{Your Discord app token}",
-   "prefix": "{Character or string to precede recognized commands}", Default - /
+   "prefix": "{Character or string to precede recognized commands}", Default - >
    "battlenet": "{Your Battle.net API token}",
    "ownerID": "{Your Discord user ID}",
-   "game": "{Game the bot will be listed as playing on launch}" Default - /wow
+   "game": "{Game the bot will be listed as playing on launch}" Default - >help
 }
 ```
 
 ### Commands
 
-toon <character> <realm> <region> - Looks up a character and displays some basic stats
+>help - Displays available commands
 
-mp <region> - Displays mythic+ affix details and leaderboards for the current week
+>toon <character> <realm> <region> - Looks up a character and displays some basic stats
 
-setgame - Sets the game that the bot is listed as playing, only the bot owner can use this command
+>mp <region> - Displays mythic+ affix details and leaderboards for the current week
+
+>setgame - Sets the game that the bot is listed as playing, only the bot owner can use this command
