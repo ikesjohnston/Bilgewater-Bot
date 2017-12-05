@@ -18,7 +18,7 @@ To configure the bot, create a file in the root project directory named "config.
 
 ### Commands
 
->help - Displays available commands
+>help --- Displays available commands
 
 >toon \<character\> \<realm\> -r \<region\> --- Looks up a character and displays some basic stats
 
