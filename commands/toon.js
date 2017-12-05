@@ -14,7 +14,8 @@ const iconSize = 56;
 const requestRaiderIoUrl = 'https://raider.io/api/v1/characters/profile?region=%s&realm=%s&name=%s' +
 '&fields=gear%2Craid_progression%2Cmythic_plus_weekly_highest_level_runs';
 
-const raiderIoUrl = 'https://raider.io/characters/%s/%s/%s'
+const armoryUrl = 'https://worldofwarcraft.com/%s/character/%s/%s';
+const raiderIoUrl = 'https://raider.io/characters/%s/%s/%s';
 const warcraftLogsUrl = 'https://www.warcraftlogs.com/character/%s/%s/%s';
 
 const validRegions = ['us', 'eu', 'kr', 'tw'];
@@ -30,14 +31,14 @@ exports.run = function(client, message, args) {
     sendUsageResponse(message);
     return;
   }
-
+  
   character = args[0];
-  realm = args[1];
+  realm = args[1];//.replace('-', ' ');
 
-  for (var i = 2; i < args.length; i++) {
-    //console.log(`Processing argument ${i}: ${args[i]}`);
+  for (var i = 1; i < args.length; i++) {
     switch (args[i]) {
       case '-r':
+        flagGiven = true;
         if (i >= args.length - 1) {
           var errorMessage = `Region flag given but no region specified. Valid regions are us, eu, kr, and tw.`;
           var errorMessageFormatted = '```' + errorMessage + '```';
@@ -185,13 +186,24 @@ function buildResponse(client, message, args, responseRaiderIo) {
     `**ToV:** ${raidProgression['trial-of-valor'].summary}\n**NH:**  ${raidProgression['the-nighthold'].summary}\n` +
     `**ToS:** ${raidProgression['tomb-of-sargeras'].summary}\n**ABT:** ${raidProgression['antorus-the-burning-throne'].summary}`;
 
-    var charRaiderIoUrl = util.format(raiderIoUrl, region, realm , character);
-    var charLogsUrl = util.format(warcraftLogsUrl, region, realm , character);
+    var armoryRegion = 'en-us';
+    if(region === 'eu') {
+      armoryRegion = 'en-gb';
+    } else 
+    if(region === 'kr') {
+      armoryRegion = 'ko-kr';
+    } else 
+    if(region === 'tw') {
+      armoryRegion = 'zh-cn';
+    }
+    var charArmoryUrl = util.format(armoryUrl, armoryRegion, realm.replace(' ', '-'), character);
+    var charRaiderIoUrl = util.format(raiderIoUrl, region, realm.replace(' ', '-'), character);
+    var charLogsUrl = util.format(warcraftLogsUrl, region, realm.replace(' ', '-'), character);
     var charLinks = `[WarcraftLogs](${charLogsUrl}) | [Raider.IO](${charRaiderIoUrl})`;
     message.channel.send({embed: {
        color: embedColor,
        title: `Level ${charLevel} ${charRace.name} ${currentSpec.spec.name} ${charClass.name}\n`,
-       url: `https://worldofwarcraft.com/en-us/character/${response.data.realm}/${response.data.name}`,
+       url: charArmoryUrl,
        description: `**Average ILVL:** ${items.averageItemLevelEquipped.toLocaleString()}\n**Artifact Traits:** ${artifactTraits}\n` +
        `**Achievement Points:** ${response.data.achievementPoints.toLocaleString()}\n`,
        author: {
