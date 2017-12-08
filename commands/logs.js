@@ -3,6 +3,8 @@ const winston = require('winston');
 const chalk = require('chalk');
 const util = require('util');
 const request = require('request');
+const database = require('better-sqlite3');
+const bookmark = require('./bookmarks');
 
 const zoneImageUrl = 'https://www.warcraftlogs.com/img/icons/warcraft/zone-%d-small.jpg';
 const encounterImageUrl = 'https://www.warcraftlogs.com/img/bosses/%d-icon.jpg';
@@ -74,20 +76,44 @@ exports.run = function(client, message, args) {
     encounterName = '';
     metric = 'dps';
 
-    if (args[0] === 'raids') {
-      requestRaids(client, message, responseZones);
-    } else if (args[0] === 'encounters') {
-      zone = args[1];
-      requestEncounters(client, message, responseZones, zone);
-    } else if (args.length < 3) {
+
+    var bookmarkFound = false;
+
+    if(args.length >= 1) {
+      if (args[0] === 'raids') {
+        requestRaids(client, message, responseZones);
+        return;
+      } else if (args[0] === 'encounters') {
+        zone = args[1];
+        requestEncounters(client, message, responseZones, zone);
+        return;
+      } else {
+        var potentialBookmark = args[0];
+        var bookmarkValues = bookmark.findBookmarkValues(message.author.id, args[0]);
+        if(bookmarkValues.character != null) {
+          character = bookmarkValues.character;
+          realm = bookmarkValues.realm;
+          region = bookmarkValues.region;
+          bookmarkFound = true;
+        }
+      }
+    }
+
+    if ((!bookmarkFound && args.length < 3) || (bookmarkFound && args.length < 2)) {
       sendUsageResponse(message);
       return;
     } else {
-      character = args[0];
-      realm = args[1];
-      zone = args[2];
+      var optionalArgStart = 3;
+      if(bookmarkFound) {
+        zone = args[1];
+        optionalArgStart = 2;
+      } else {
+        character = args[0];
+        realm = args[1];
+        zone = args[2];
+      }
 
-      for (var i = 3; i < args.length; i++) {
+      for (var i = optionalArgStart; i < args.length; i++) {
         //console.log(`Processing argument ${i}: ${args[i]}`);
         switch (args[i]) {
           case '-r':
@@ -219,14 +245,13 @@ function requestEncounters(client, message, responseZones, zone) {
 
 function requestParses(client, message, responseZones) {
   if (!isValidZone(zone)) {
-    var errorMessage = `Invalid raid. Type ${config.prefix}logs raids for a list of valid raids.`;
+    var errorMessage = `Invalid raid or bad bookmark. Type ${config.prefix}logs raids for a list of valid raids.`;
     var errorMessageFormatted = '```' + errorMessage + '```';
     message.channel.send(errorMessageFormatted);
   } else {
     var zoneId = zoneIds[zoneNames.indexOf(zone)];
     zoneName = getZoneName(responseZones, zoneId);
     requestParsesUrl = util.format(requestRaidParsesUrl, character, realm, region, zoneId, metric, config.warcraftLogs);
-    console.log(requestParses);
     request(requestParsesUrl, { json: true }, (err, res, body) => {
       if (err) {
         var owner = client.users.get(config.ownerID);
@@ -547,10 +572,10 @@ function sendEncounterParseResponse(message, responseZones, responseParses, zone
 }
 
 function sendUsageResponse(message) {
-  var usage = `Usage: \n\n${config.prefix}logs <character> <realm> <raid>\n\nOptional Arguments:\n\n-r <region>       Valid regions are ` +
-    `us(*), eu, kr, and tw\n-d <difficulty>   Valid difficulties are n(*), h, and m\n-e <encounter>    See Additional Info\n-m <metric>` +
-    `       Valid metrics are dps(*) and hps\n\n(*) = Default Value\n\nAdditional Info:\n\nType ${config.prefix}logs raids for a list ` +
-    `of supported raids \nType ${config.prefix}logs encounters <raid> for a list of encounter IDs`;
+  var usage = `Usage: \n\n${config.prefix}logs <character> <realm> <raid> \n---------------OR---------------\n${config.prefix}logs <bookmark> <raid>\n\nOptional Arguments:` +
+    `\n\n-r <region>       Valid regions are us(*), eu, kr, and tw\n-d <difficulty>   Valid difficulties are n(*), h, and m\n-e <encounter>` +
+    `    See Additional Info\n-m <metric>       Valid metrics are dps(*) and hps\n\n(*) = Default Value\n\nAdditional Info:\n\nType ${config.prefix}logs ` +
+    `raids for a list of supported raids \nType ${config.prefix}logs encounters <raid> for a list of encounter IDs`;
     var usageFormatted = '```' + usage + '```';
     message.channel.send(usageFormatted);
     return;

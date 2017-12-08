@@ -4,6 +4,8 @@ const chalk = require('chalk');
 const blizzard = require('blizzard.js').initialize({ apikey: config.battlenet });
 const util = require('util');
 const request = require('request');
+const database = require('better-sqlite3');
+const bookmark = require('./bookmarks');
 
 const bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
 const charRenderUrl = 'https://render-%s.worldofwarcraft.com/character/%s';
@@ -27,32 +29,46 @@ var region;
 exports.run = function(client, message, args) {
   region = 'us';
 
-  if(args.length < 2) {
-    sendUsageResponse(message);
-    return;
-  }
-  
-  character = args[0];
-  realm = args[1];//.replace('-', ' ');
+  var bookmarkFound = false;
 
-  for (var i = 1; i < args.length; i++) {
-    switch (args[i]) {
-      case '-r':
-        flagGiven = true;
-        if (i >= args.length - 1) {
-          var errorMessage = `Region flag given but no region specified. Valid regions are us, eu, kr, and tw.`;
-          var errorMessageFormatted = '```' + errorMessage + '```';
-          message.channel.send(errorMessageFormatted);
-          return;
-        }
-        i++;
-        if (!isValidRegion(args[i])) {
-            var errorMessage = `Invalid region. Valid regions are us, eu, kr, and tw.`;
+  if(args.length === 1) {
+    var bookmarkValues = bookmark.findBookmarkValues(message.author.id, args[0]);
+    if(bookmarkValues.character != null) {
+      character = bookmarkValues.character;
+      realm = bookmarkValues.realm;
+      region = bookmarkValues.region;
+      bookmarkFound = true;
+    }
+  }
+
+  if(!bookmarkFound) {
+    if(args.length < 2) {
+      sendUsageResponse(message);
+      return;
+    }
+
+    character = args[0];
+    realm = args[1];//.replace('-', ' ');
+
+    for (var i = 1; i < args.length; i++) {
+      switch (args[i]) {
+        case '-r':
+          flagGiven = true;
+          if (i >= args.length - 1) {
+            var errorMessage = `Region flag given but no region specified. Valid regions are us, eu, kr, and tw.`;
             var errorMessageFormatted = '```' + errorMessage + '```';
             message.channel.send(errorMessageFormatted);
             return;
-        }
-        region = args[i];
+          }
+          i++;
+          if (!isValidRegion(args[i])) {
+              var errorMessage = `Invalid region. Valid regions are us, eu, kr, and tw.`;
+              var errorMessageFormatted = '```' + errorMessage + '```';
+              message.channel.send(errorMessageFormatted);
+              return;
+          }
+          region = args[i];
+      }
     }
   }
 
@@ -169,7 +185,7 @@ function buildResponse(client, message, args, responseRaiderIo) {
 
     var mpWeeklyBests = responseRaiderIo.mythic_plus_weekly_highest_level_runs;
     var weeklyBestReport;
-    if(mpWeeklyBests.length == 0) {
+    if(mpWeeklyBests === undefined || mpWeeklyBests.length == 0) {
       weeklyBestReport = 'No Mythic+ dungeons \ncompleted this week.';
     } else {
       var weeklyBest = mpWeeklyBests[0];
@@ -179,20 +195,27 @@ function buildResponse(client, message, args, responseRaiderIo) {
       `${weeklyBestTime}\nResult: ${weeklyBestResult}\nScore: ${weeklyBest.score}`;
     }
 
-    var artifactTraits = responseRaiderIo.gear.artifact_traits;
-
-    var raidProgression = responseRaiderIo.raid_progression;
-    var progressionSummary = `**EN:**  ${raidProgression['the-emerald-nightmare'].summary}\n` +
-    `**ToV:** ${raidProgression['trial-of-valor'].summary}\n**NH:**  ${raidProgression['the-nighthold'].summary}\n` +
-    `**ToS:** ${raidProgression['tomb-of-sargeras'].summary}\n**ABT:** ${raidProgression['antorus-the-burning-throne'].summary}`;
+    var artifactTraits = '0';
+    var progressionSummary = `N/A`;
+    if (responseRaiderIo.gear) {
+      if (responseRaiderIo.gear.artifact_traits) {
+        artifactTraits = responseRaiderIo.gear.artifact_traits;
+      }
+      var raidProgression = responseRaiderIo.raid_progression;
+      if (raidProgression) {
+        progressionSummary = `**EN:**  ${raidProgression['the-emerald-nightmare'].summary}\n` +
+        `**ToV:** ${raidProgression['trial-of-valor'].summary}\n**NH:**  ${raidProgression['the-nighthold'].summary}\n` +
+        `**ToS:** ${raidProgression['tomb-of-sargeras'].summary}\n**ABT:** ${raidProgression['antorus-the-burning-throne'].summary}`;
+      }
+    }
 
     var armoryRegion = 'en-us';
     if(region === 'eu') {
       armoryRegion = 'en-gb';
-    } else 
+    } else
     if(region === 'kr') {
       armoryRegion = 'ko-kr';
-    } else 
+    } else
     if(region === 'tw') {
       armoryRegion = 'zh-cn';
     }
@@ -200,6 +223,31 @@ function buildResponse(client, message, args, responseRaiderIo) {
     var charRaiderIoUrl = util.format(raiderIoUrl, region, realm.replace(' ', '-'), character);
     var charLogsUrl = util.format(warcraftLogsUrl, region, realm.replace(' ', '-'), character);
     var charLinks = `[WarcraftLogs](${charLogsUrl}) | [Raider.IO](${charRaiderIoUrl})`;
+
+    var embedFields = [
+      {
+        name: 'Stats',
+        value: `**${mainStat}:** ${mainStatValue.toLocaleString()} \n**Crit:** ${stats.crit.toFixed(2)}%\n**Haste:** ` +
+        `${stats.haste.toFixed(2)}%\n**Mastery:** ${stats.mastery.toFixed(2)}%\n**Versatility:** ${versBonus.toFixed(2)}%\n`,
+        inline: true
+      },
+      {
+        name: 'PVP',
+        value: `**2v2 Rating:** ${pvpBrackets.ARENA_BRACKET_2v2.rating.toLocaleString()} \n**3v3 Rating:** ` +
+        `${pvpBrackets.ARENA_BRACKET_3v3.rating.toLocaleString()} \n**Battleground Rating:** ` +
+        `${pvpBrackets.ARENA_BRACKET_RBG.rating.toLocaleString()} \n**Honorable Kills:** ` +
+        `${response.data.totalHonorableKills.toLocaleString()} \n`,
+        inline: true
+      },
+      {
+        name: 'Links',
+        value: charLinks
+      }
+    ];
+    if (charLevel === 110) {
+      embedFields.splice(1, 0, {name: 'Raid Progression', value: progressionSummary, inline: true});
+      embedFields.splice(3, 0, {name: 'Mythic+', value: `**Weekly Best:**\n${weeklyBestReport}`, inline: true});
+    }
     message.channel.send({embed: {
        color: embedColor,
        title: `Level ${charLevel} ${charRace.name} ${currentSpec.spec.name} ${charClass.name}\n`,
@@ -213,36 +261,7 @@ function buildResponse(client, message, args, responseRaiderIo) {
        thumbnail: {
          url: characterImageUrlThumbnail
        },
-       fields: [
-         {
-           name: 'Stats',
-           value: `**${mainStat}:** ${mainStatValue.toLocaleString()} \n**Crit:** ${stats.crit.toFixed(2)}%\n**Haste:** ` +
-           `${stats.haste.toFixed(2)}%\n**Mastery:** ${stats.mastery.toFixed(2)}%\n**Versatility:** ${versBonus.toFixed(2)}%\n`,
-           inline: true
-         },
-         {
-           name: 'Raid Progression',
-           value: progressionSummary,
-           inline: true
-         },
-         {
-           name: 'PVP',
-           value: `**2v2 Rating:** ${pvpBrackets.ARENA_BRACKET_2v2.rating.toLocaleString()} \n**3v3 Rating:** ` +
-           `${pvpBrackets.ARENA_BRACKET_3v3.rating.toLocaleString()} \n**Battleground Rating:** ` +
-           `${pvpBrackets.ARENA_BRACKET_RBG.rating.toLocaleString()} \n**Honorable Kills:** ` +
-           `${response.data.totalHonorableKills.toLocaleString()} \n`,
-           inline: true
-         },
-         {
-           name: 'Mythic+',
-           value: `**Weekly Best:**\n${weeklyBestReport}`,
-           inline: true
-         },
-         {
-           name: 'Links',
-           value: charLinks
-         }
-       ],
+       fields: embedFields,
        footer: {
          icon_url: bilgewaterIconUrl,
          text: 'Powered by Bilgewater Bot'
@@ -272,8 +291,8 @@ function isValidRegion(region) {
 }
 
 function sendUsageResponse(message) {
-  var usage = `Usage: \n\n${config.prefix}toon <character> <realm>\n\nOptional Arguments:\n\n-r <region>       Valid regions are ` +
-    `us(*), eu, kr, and tw\n\n(*) = Default Value`;
+  var usage = `Usage: \n\n${config.prefix}toon <character> <realm>\n-----------OR-----------\n${config.prefix}toon <bookmark>\n\nOptional Arguments:\n\n-r <region>` +
+    `       Valid regions are us(*), eu, kr, and tw\n\n(*) = Default Value`;
     var usageFormatted = '```' + usage + '```';
     message.channel.send(usageFormatted);
     return;
