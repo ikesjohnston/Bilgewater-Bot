@@ -20,7 +20,7 @@ To configure the bot, create a file in the root project directory named "config.
 
 \>help --- Displays available commands
 
-\>bookmarks add \<bookmark name\> \<character name\> \<realm\> \<region\> - bookmark up to 10 characters for use with other commands
+\>bookmarks add \<bookmark name\> \<character name\> \<realm\> \<region\> --- bookmark up to 10 characters for use with other commands
 
 \>toon \<character\> \<realm\> -r \<region\> --- Looks up a character and displays some basic stats
 
