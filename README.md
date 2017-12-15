@@ -20,12 +20,12 @@ To configure the bot, create a file in the root project directory named "config.
 
 \>help --- Displays available commands
 
-\>bookmarks add \<bookmark name\> \<character name\> \<realm\> \<region\> --- bookmark up to 10 characters for use with other commands
+\>bookmarks --- bookmark up to 10 characters for use with other commands
 
-\>toon \<character\> \<realm\> -r \<region\> --- Looks up a character and displays some basic stats
+\>toon --- Looks up a character and displays some basic stats
 
-\>affix -schedule --- Displays mythic+ affix details and leaderboards for the current week
+\>affix --- Displays mythic+ affix details and leaderboards for the current week
    
-\>logs \<character\> \<realm\> \<raid\> -r \<region\> -e \<encounter\> -d \<difficulty\> -m \<metric\> --- Get raid or encounter logs for a character
+\>logs --- Get raid or encounter logs for a character
 
 \>setgame --- Sets the game that the bot is listed as playing, only the bot owner can use this command
