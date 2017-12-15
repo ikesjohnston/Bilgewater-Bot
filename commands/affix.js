@@ -4,6 +4,7 @@ const winston = require('winston');
 const chalk = require('chalk');
 const util = require('util');
 const pad = require('pad');
+const moment = require('moment');
 
 const iconRenderUrl = 'https://render-%s.worldofwarcraft.com/icons/56/%s.jpg';
 const bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
@@ -59,7 +60,7 @@ exports.run = function(client, message, args) {
   var getSchedule = false;
 
   if (args.length === 1) {
-    if (args[0] === '-schedule') {
+    if (args[0].toLowerCase() === '-s') {
       getSchedule = true;
     } else {
       sendUsageResponse(message);
@@ -67,6 +68,7 @@ exports.run = function(client, message, args) {
     }
   }
 
+  message.reply("fetching affix data for you...");
   request('https://raider.io/api/v1/mythic-plus/affixes?region=us', { json: true }, (err, res, body) => {
     if (err) {
       var owner = client.users.get(config.ownerID);
@@ -110,9 +112,8 @@ function getWeeklyAffixes(affixIds) {
 }
 
 function sendUsageResponse(message) {
-  var usage = `Usage: \n\n${config.prefix}affix\n\nOptional Arguments:\n\n-schedule     Get the schedule for Mythic+ affixes`;
-    var usageFormatted = '```' + usage + '```';
-    message.channel.send(usageFormatted);
+  var usage = `\`\`\`Usage: \n\n${config.prefix}affix\n\nOptional Arguments:\n\n-s     Get the rotation schedule for Mythic+ affixes\`\`\``;
+    message.channel.send(usage);
     return;
 }
 
@@ -176,16 +177,15 @@ function sendAffixResponse(affixes, message) {
          inline: true
        },
        {
-         name: 'Rotation',
-         value: `\`${config.prefix}affix -schedule\``,
+         name: 'Schedule',
+         value: `\`${config.prefix}affix -s\``,
          inline: true
        }
      ],
      footer: {
        icon_url: bilgewaterIconUrl,
-       text: 'Powered by Bilgewater Bot'
-     },
-     timestamp: new Date()
+       text: 'Mythic+ Affix Data | Powered by Bilgewater Bot'
+     }
    }});
 }
 
@@ -214,44 +214,44 @@ function sendScheduleResponse(affixes, message) {
   }
 
   var affixScheduleString = '';
-  for (var i = 0; i < affixSchedule.length; i++) {
-    var week = getWeeklyAffixes(affixSchedule[i]);
-    var weekString = '';
-    weekString += pad(`(4) ${week[0].name}`, 16);
-    weekString += pad(`(7) ${week[1].name}`, 16);
-    weekString += pad(`(10) ${week[2].name}`, 16);
-    if (i === thisWeekIndex) {
-        affixScheduleString += `** ${weekString} (\*)**`;
-    } else {
-      affixScheduleString += weekString;
-    }
-    affixScheduleString += '\n';
-  }
 
-  affixScheduleString += '\n\n**(\*)** = This Week';
+  var thisWeek = getWeeklyAffixes(affixSchedule[0]);
+  var thisWeekString = `**This Week - **`;
+  thisWeekString += pad(`(4) ${thisWeek[0].name} - `, 16);
+  thisWeekString += pad(`(7) ${thisWeek[1].name} - `, 16);
+  thisWeekString += pad(`(10) ${thisWeek[2].name}`, 16);
+
+  const dayINeed = 2; // for Tuesday
+  for (var i = 1; i < affixSchedule.length; i++) {
+    var date = moment().add(i - 1, 'weeks').isoWeekday(dayINeed).format('MM/DD/YYYY');
+    var week = getWeeklyAffixes(affixSchedule[i]);
+    var weekString = `**${date} - **`;
+    weekString += `(4) ${week[0].name} - `;
+    weekString += `(7) ${week[1].name} - `;
+    weekString +=`(10) ${week[2].name}`;
+
+    affixScheduleString += `${weekString}\n`;
+  }
 
   message.channel.send({embed: {
     color: 0xffb807,
     author: {
-      name: 'Mythic+ Affixes',
+      name: 'Mythic+ Affix Schedule',
       icon_url: mpIconUrl
      },
-     title: 'Additional Info',
-     url: 'https://mythicpl.us/',
-     description: 'Keystones are on a 12 week rotation! Each week is something new!',
+     description: 'Keystones are on a 12 week rotation.\n[Additional Info.](https://mythicpl.us/)',
      thumbnail: {
        url: mpIconUrl
      },
      fields: [
        {
-         name: 'Schedule',
+         name: thisWeekString,
          value: affixScheduleString,
        }
      ],
      footer: {
        icon_url: bilgewaterIconUrl,
-       text: 'Powered by Bilgewater Bot'
-     },
-     timestamp: new Date()
+       text: 'Mythic+ Affix Data | Powered by Bilgewater Bot'
+     }
    }});
 }

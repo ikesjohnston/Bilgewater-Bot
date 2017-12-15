@@ -224,8 +224,8 @@ function findBookmarkSlot(row, bookmark) {
 
 function sendUsageResponse(message) {
   var usage = `Usage: \n\n${config.prefix}bookmarks add <bookmark name> <character name> <realm> <region>\n\n` +
-  `Additional Info:\n\nYou can bookmark up to 10 characters, assigning a unique name to each bookmark\n\n` +
-  `Use "${config.prefix}bookmarks delete <bookmark>" to delete a bookmark\n\nUse "${config.prefix}bookmarks list" to view your stored bookmarks`;
+  `Additional Info:\n\nYou can bookmark up to 10 characters, assigning a unique name to each bookmark.\n` +
+  `Type \"${config.prefix}bookmarks delete <bookmark>\" to delete a bookmark.\nType \"${config.prefix}bookmarks list\" to view your stored bookmarks.`;
   var usageFormatted = '```' + usage + '```';
   message.channel.send(usageFormatted);
   return;

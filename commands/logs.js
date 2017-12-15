@@ -204,16 +204,14 @@ function requestRaids(client, message, responseZones) {
       }
     }
   }
-  var availableRaids = `Available raids are: \n${raids}`;
-  var availableRaidsFormatted = '```' + availableRaids + '```';
-  message.channel.send(availableRaidsFormatted);
+  var availableRaids = `\`\`\`Available raids are: \n${raids}\`\`\``;
+  message.channel.send(availableRaids);
 }
 
 function requestEncounters(client, message, responseZones, zone) {
   if (!isValidZone(zone)) {
-    var errorMessage = `Invalid raid. Type ${config.prefix}logs raids for a list of valid raids.`;
-    var errorMessageFormatted = '```' + errorMessage + '```';
-    message.channel.send(errorMessageFormatted);
+    var errorMessage = `\`\`\`Invalid raid. Type ${config.prefix}logs raids for a list of valid raids.\`\`\``;
+    message.channel.send(errorMessage);
   } else {
     var zoneFound = false;
     var encounters = '';
@@ -236,22 +234,21 @@ function requestEncounters(client, message, responseZones, zone) {
       message.channel.send(availableEncountersFormatted);
     } else {
       var owner = client.users.get(config.ownerID);
-      var errorMessage = `Something's not quite right... Zone no longer exists. Complain to ${owner}`;
-      var errorMessageFormatted = '```' + errorMessage + '```';
-      message.channel.send(errorMessageFormatted);
+      var errorMessage = `\`\`\`Something's not quite right... Zone no longer exists. Complain to ${owner}\`\`\``;
+      message.channel.send(errorMessage);
     }
   }
 }
 
 function requestParses(client, message, responseZones) {
   if (!isValidZone(zone)) {
-    var errorMessage = `Invalid raid or bad bookmark. Type ${config.prefix}logs raids for a list of valid raids.`;
-    var errorMessageFormatted = '```' + errorMessage + '```';
-    message.channel.send(errorMessageFormatted);
+    var errorMessage = `\`\`\`Invalid raid or bad bookmark. Type ${config.prefix}logs raids for a list of valid raids.\`\`\``;
+    message.channel.send(errorMessage);
   } else {
     var zoneId = zoneIds[zoneNames.indexOf(zone)];
     zoneName = getZoneName(responseZones, zoneId);
     requestParsesUrl = util.format(requestRaidParsesUrl, character, realm, region, zoneId, metric, config.warcraftLogs);
+      message.reply("fetching logs for you...")
     request(requestParsesUrl, { json: true }, (err, res, body) => {
       if (err) {
         var owner = client.users.get(config.ownerID);
@@ -262,9 +259,8 @@ function requestParses(client, message, responseZones) {
       responseParses = res.body;
 
       if (responseParses.status === 400) {
-        var errorMessage = 'Character not found. Check region and spelling.';
-        var errorMessageFormatted = '```' + errorMessage + '```';
-        message.channel.send(errorMessageFormatted);
+        var errorMessage = '\`\`\`Character not found. Check region and spelling.\`\`\`';
+        message.channel.send(errorMessage);
         return;
       } else {
         zoneImgUrl = zoneImageUrl.replace('%d', zoneId);
@@ -357,7 +353,6 @@ function sendRaidParseResponse(message, responseZones, responseParses, zoneId) {
 
   for (var i = 0; i < responseParses.length; i++) {
     if (responseParses[i].difficulty === difficultyId) {
-      //console.log(responseParses[i]);
       logsFound = true;
       var specs = responseParses[i].specs;
       for (var j = 0; j < specs.length; j++) {
@@ -385,7 +380,6 @@ function sendRaidParseResponse(message, responseZones, responseParses, zoneId) {
       }
     }
   }
-  //console.log(charLogsUrl);
 
   if (logsFound) {
     bestPerfAvg = (bestPerfSum / bestPerfNum).toFixed(1)
@@ -393,9 +387,8 @@ function sendRaidParseResponse(message, responseZones, responseParses, zoneId) {
     allStarPoints = allStarPoints.toFixed(1);
   } else {
     var charSummary = util.format(charUrl, region, realm, character);
-    var errorMessage = `No logs for ${capitalizeFirstLetter(character)} @ ${capitalizeFirstLetter(realm)} found for ${difficultyName} ${zoneName}.`;
-    var errorMessageFormatted = '```' + errorMessage + '```';
-    message.channel.send(errorMessageFormatted);
+    var errorMessage = `\`\`\`No logs for ${capitalizeFirstLetter(character)} @ ${capitalizeFirstLetter(realm)} found for ${difficultyName} ${zoneName}.\`\`\``;
+    message.channel.send(errorMessage);
     return;
   }
 
@@ -440,9 +433,8 @@ function sendRaidParseResponse(message, responseZones, responseParses, zoneId) {
       ],
       footer: {
         icon_url: bilgewaterIconUrl,
-        text: 'Powered by Bilgewater Bot'
+        text: 'Raid Logs | Powered by Bilgewater Bot'
       },
-      timestamp: new Date()
   }});
 }
 
@@ -499,13 +491,11 @@ function sendEncounterParseResponse(message, responseZones, responseParses, zone
       }
     }
   }
-  //console.log(charLogsUrl);
   if (logsFound) {
     allStarPoints = allStarPoints.toFixed(1);
   } else {
-    var errorMessage = `No logs for ${capitalizeFirstLetter(character)} @ ${capitalizeFirstLetter(realm)} found for ${difficultyName} ${encounterName}.`;
-    var errorMessageFormatted = '```' + errorMessage + '```';
-    message.channel.send(errorMessageFormatted);
+    var errorMessage = `\`\`\`No logs for ${capitalizeFirstLetter(character)} @ ${capitalizeFirstLetter(realm)} found for ${difficultyName} ${encounterName}.\`\`\``;
+    message.channel.send(errorMessage);
     return;
   }
 
@@ -565,19 +555,17 @@ function sendEncounterParseResponse(message, responseZones, responseParses, zone
       ],
       footer: {
         icon_url: bilgewaterIconUrl,
-        text: 'Powered by Bilgewater Bot'
-      },
-      timestamp: new Date()
+        text: 'Encounter Logs | Powered by Bilgewater Bot'
+      }
   }});
 }
 
 function sendUsageResponse(message) {
-  var usage = `Usage: \n\n${config.prefix}logs <character> <realm> <raid> \n---------------OR---------------\n${config.prefix}logs <bookmark> <raid>\n\nOptional Arguments:` +
+  var usage = `\`\`\`Usage: \n\n${config.prefix}logs <character> <realm> <raid> \n---------------OR---------------\n${config.prefix}logs <bookmark> <raid>\n\nOptional Arguments:` +
     `\n\n-r <region>       Valid regions are us(*), eu, kr, and tw\n-d <difficulty>   Valid difficulties are n(*), h, and m\n-e <encounter>` +
-    `    See Additional Info\n-m <metric>       Valid metrics are dps(*) and hps\n\n(*) = Default Value\n\nAdditional Info:\n\nType ${config.prefix}logs ` +
-    `raids for a list of supported raids \nType ${config.prefix}logs encounters <raid> for a list of encounter IDs`;
-    var usageFormatted = '```' + usage + '```';
-    message.channel.send(usageFormatted);
+    `    See \"Additional Info\"\n-m <metric>       Valid metrics are dps(*) and hps\n\n(*) = Default Value\n\nAdditional Info:\n\nType \"${config.prefix}logs ` +
+    `raids\" for a list of supported raids. \nType \"${config.prefix}logs encounters <raid>\" for a list of encounter IDs.\`\`\``;
+    message.channel.send(usage);
     return;
 }
 
