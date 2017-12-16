@@ -29,3 +29,5 @@ To configure the bot, create a file in the root project directory named "config.
 \>logs --- Get raid or encounter logs for a character
 
 \>setgame --- Sets the game that the bot is listed as playing, only the bot owner can use this command
+
+\>search --- Perform a Wowhead search
