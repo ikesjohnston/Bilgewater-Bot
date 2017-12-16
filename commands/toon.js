@@ -271,23 +271,25 @@ function buildDefaultResponse(client, message, args) {
       }
 
       var scores = responseRaiderIo.mythic_plus_scores;
-      var mythicPlusScore = '';
       var ranks = responseRaiderIo.mythic_plus_ranks;
-      var mythicPlusRanks = '';
 
-      if(specRole == 'DPS'){
-        mythicPlusScore = `**DPS Score:** ${scores.dps.toLocaleString()}\n`;
-        mythicPlusRanks = `**${charClass.name} DPS Ranks:** \nRealm: ${ranks.class_dps.realm.toLocaleString()}\nRegion: ${ranks.class_dps.region.toLocaleString()}\nWorld: ${ranks.class_dps.world.toLocaleString()}\n`;
-      } else
-      if(specRole == 'HEALING') {
-        mythicPlusScore = `**Healer Score:** ${scores.healer.toLocaleString()}\n`;
-        mythicPlusRanks = `**${charClass.name} Healer Ranks:** \nRealm: ${ranks.class_healer.realm.toLocaleString()}\nRegion: ${ranks.class_dps.region.toLocaleString()}\nWorld: ${ranks.class_healer.world.toLocaleString()}\n`;
-      } else
-      if(specRole == 'TANK') {
-        mythicPlusScore = `**Tank Score:** ${scores.tank.toLocaleString()}\n`;
-        mythicPlusRanks = `**${charClass.name} Tank Ranks:** \nRealm: ${ranks.class_tank.realm.toLocaleString()}\nRegion: ${ranks.class_dps.region.toLocaleString()}\nWorld: ${ranks.class_tank.world.toLocaleString()}\n`;
+      if(scores && ranks) {
+        var mythicPlusScore = '';
+        var mythicPlusRanks = '';
+        if(specRole == 'DPS'){
+          mythicPlusScore = `**DPS Score:** ${scores.dps.toLocaleString()}\n`;
+          mythicPlusRanks = `**${charClass.name} DPS Ranks:** \nRealm - ${ranks.class_dps.realm.toLocaleString()}\nRegion - ${ranks.class_dps.region.toLocaleString()}\nWorld - ${ranks.class_dps.world.toLocaleString()}\n`;
+        } else
+        if(specRole == 'HEALING') {
+          mythicPlusScore = `**Healer Score:** ${scores.healer.toLocaleString()}\n`;
+          mythicPlusRanks = `**${charClass.name} Healer Ranks:** \nRealm - ${ranks.class_healer.realm.toLocaleString()}\nRegion - ${ranks.class_dps.region.toLocaleString()}\nWorld - ${ranks.class_healer.world.toLocaleString()}\n`;
+        } else
+        if(specRole == 'TANK') {
+          mythicPlusScore = `**Tank Score:** ${scores.tank.toLocaleString()}\n`;
+          mythicPlusRanks = `**${charClass.name} Tank Ranks:** \nRealm - ${ranks.class_tank.realm.toLocaleString()}\nRegion - ${ranks.class_dps.region.toLocaleString()}\nWorld - ${ranks.class_tank.world.toLocaleString()}\n`;
+        }
+        mythicPlusSummary += mythicPlusScore + mythicPlusRanks;
       }
-      mythicPlusSummary += mythicPlusScore + mythicPlusRanks;
 
       var artifactTraits = '0';
       var progressionSummary = `N/A`;
@@ -545,6 +547,9 @@ function buildProfessionsResponse(client, message, args) {
     if (professions.secondary.length > 0) {
      for (var i = 0; i < professions.secondary.length; i++) {
        var profession = professions.secondary[i];
+       if(profession.max === 0) {
+         continue;
+       }
        secondaryProfessionsSummary += `**${profession.name}**\nRank: ${profession.rank}/${profession.max}`;
        if (profession.recipes.length > 0) {
          secondaryProfessionsSummary += `\nRecipes Learned: ${profession.recipes.length}`;
@@ -732,7 +737,7 @@ function buildMythicPlusResponse(client, message, args) {
         }
 
         var scores = responseRaiderIo.mythic_plus_scores;
-        if(scores.all === 0) {
+        if(scores === undefined || scores.all === 0) {
           message.channel.send('\`\`\`This character has not completed a Mythic+ dungeon this season.\`\`\`');
           return;
         }
