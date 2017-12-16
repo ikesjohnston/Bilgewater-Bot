@@ -13,6 +13,9 @@ To configure the bot, create a file in the root project directory named "config.
    "battlenet": "{Your Battle.net API token}",
    "ownerID": "{Your Discord user ID}",
    "game": "{Game the bot will be listed as playing on launch}" Default - >help
+   "googleApi": "{Your Google Custom Search API token}",
+   "googleCx": "{Your Google Custom Search CX ID}",
+   "searchDelay": {Time in seconds user must wait to search again}
 }
 ```
 
