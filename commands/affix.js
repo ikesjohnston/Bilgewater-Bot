@@ -229,7 +229,7 @@ function sendScheduleResponse(affixes, message) {
       name: 'Mythic+ Affix Schedule',
       icon_url: mpIconUrl
      },
-     description: `Keystones are on a 12 week rotation.\n[Additional Info.](${mythicPlusUrl})`,
+     description: `Keystones are on a 12 week rotation.\n[Additional Info](${mythicPlusUrl})`,
      thumbnail: {
        url: mpIconUrl
      },
