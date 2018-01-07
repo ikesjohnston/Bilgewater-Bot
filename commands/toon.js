@@ -1,31 +1,44 @@
-const config = require('../config.json');
-const winston = require('winston');
-const chalk = require('chalk');
-const blizzard = require('blizzard.js').initialize({ apikey: config.battlenet });
-const util = require('util');
-const request = require('request');
-const database = require('better-sqlite3');
-const bookmark = require('./bookmarks');
-const cheerio = require('cheerio');
+var config = require('../config.json');
+var blizzard = require('blizzard.js').initialize({ apikey: config.battlenet });
+var util = require('util');
+var request = require('request');
+var database = require('better-sqlite3');
+var bookmark = require('./bookmarks');
+var cheerio = require('cheerio');
 
-const bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
-const charRenderUrl = 'https://render-%s.worldofwarcraft.com/character/%s';
-const iconRenderUrl = 'https://render-%s.worldofwarcraft.com/icons/%d/%s.jpg';
+var chalk = require('chalk');
+var chalkLog = chalk.white;
+var chalkError = chalk.bold.red;
 
-const iconSize = 56;
+var winston = require('winston');
+//winston.add(winston.transports.File, { filename: '../logs/search.log' });
 
-const requestRaiderIoUrl = 'https://raider.io/api/v1/characters/profile?region=%s&realm=%s&name=%s' +
+var bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
+var charRenderUrl = 'https://render-%s.worldofwarcraft.com/character/%s';
+var iconRenderUrl = 'https://render-%s.worldofwarcraft.com/icons/%d/%s.jpg';
+
+var iconSize = 56;
+
+var requestRaiderIoUrl = 'https://raider.io/api/v1/characters/profile?region=%s&realm=%s&name=%s' +
 '&fields=gear%2Craid_progression%2Cmythic_plus_scores%2Cmythic_plus_ranks%2Cmythic_plus_weekly_highest_level_runs';
-const detailedRaiderIo = '%2Cmythic_plus_recent_runs%2Cmythic_plus_best_runs%2Cmythic_plus_highest_level_runs';
+var detailedRaiderIo = '%2Cmythic_plus_recent_runs%2Cmythic_plus_best_runs%2Cmythic_plus_highest_level_runs';
 
-const armoryUrl = 'https://worldofwarcraft.com/%s/character/%s/%s';
-const raiderIoUrl = 'https://raider.io/characters/%s/%s/%s';
-const warcraftLogsUrl = 'https://www.warcraftlogs.com/character/%s/%s/%s';
+var armoryUrl = 'https://worldofwarcraft.com/%s/character/%s/%s';
+var raiderIoUrl = 'https://raider.io/characters/%s/%s/%s';
+var warcraftLogsUrl = 'https://www.warcraftlogs.com/character/%s/%s/%s';
 
-const validRegions = ['us', 'eu', 'kr', 'tw'];
+var validRegions = ['us', 'eu', 'kr', 'tw'];
+
+var progressionRaids = [
+  {'name': 'The Emerald Nightmare', 'short': 'EN'},
+  {'name': 'Trial of Valor', 'short': 'ToV'},
+  {'name': 'The Nighthold', 'short': 'NH'},
+  {'name': 'Tomb of Sargeras', 'short': 'ToS'},
+  {'name': 'Antorus, the Burning Throne', 'short': 'ABT'},
+];
 
 // 'Ahead of the Curve' achievement IDs
-const aotc = {
+var aotc = {
   'en': 11194,
   'tov': 11581,
   'nh': 11195,
@@ -34,7 +47,7 @@ const aotc = {
 };
 
 // 'Cutting Edge' achievement IDs
-const ce = {
+var ce = {
   'en': 11191,
   'tov': 11580,
   'nh': 11192,
@@ -42,10 +55,10 @@ const ce = {
   'abt': 12111
 };
 
-const dungeonBannerUrl = 'https://assets.raider.io/images/dungeons/%s.jpg';
+var dungeonBannerUrl = 'https://assets.raider.io/images/dungeons/%s.jpg';
 
 // Spell names for dungeon icon rendering
-const dungeonIcons = {
+var dungeonIcons = {
     'mos': 'achievement_dungeon_mawofsouls',
     'votw': 'achievement_dungeon_vaultofthewardens',
     'nl': 'achievement_dungeon_neltharionslair',
@@ -133,21 +146,22 @@ exports.run = function(client, message, args) {
   }
 
   message.reply("fetching character data for you...");
-  if(getCollections) {
+  if (!getCollections && !getProfessions && !getAchievements && !getMythicPlus) {
+        buildDefaultResponse(client, message, args);
+  }
+  if (getCollections) {
     buildCollectionsResponse(client, message, args);
-  } else
+  }
   if (getProfessions) {
     buildProfessionsResponse(client, message, args);
-  } else
+  }
   if (getAchievements) {
     buildAchievementsResponse(client, message, args);
-  } else if (getMythicPlus) {
+  }
+  if (getMythicPlus) {
     buildMythicPlusResponse(client, message, args);
   }
-  else {
-    buildDefaultResponse(client, message, args);
-  }
-}
+};
 
 function buildDefaultResponse(client, message, args) {
   var requestRaiderIo = util.format(requestRaiderIoUrl, region, realm, character);
@@ -171,7 +185,7 @@ function buildDefaultResponse(client, message, args) {
       classes = response.data.classes;
     });
 
-    blizzard.wow.character(['profile', 'stats', 'items', 'talents', 'pvp', 'titles', 'achievements'], { origin: region, realm: realm, name: character })
+    blizzard.wow.character(['profile', 'stats', 'items', 'talents', 'pvp', 'titles', 'achievements', 'progression'], { origin: region, realm: realm, name: character })
     .then(response => {
       var characterImageUrlThumbnail = util.format(charRenderUrl, region, response.data.thumbnail);
       var characterImageUrlMain = characterImageUrlThumbnail.replace('avatar', 'main');
@@ -227,13 +241,13 @@ function buildDefaultResponse(client, message, args) {
       }
 
       var versBonus;
-      if(specRole == 'DPS'){
+      if(specRole === 'DPS'){
         versBonus = stats.versatilityDamageDoneBonus;
       } else
-      if(specRole == 'HEALING') {
+      if(specRole === 'HEALING') {
         versBonus = stats.versatilityHealingDoneBonus;
       } else
-      if(specRole == 'TANK') {
+      if(specRole === 'TANK') {
         versBonus = stats.versatilityDamageTakenBonus;
       }
 
@@ -257,15 +271,15 @@ function buildDefaultResponse(client, message, args) {
       if(scores && ranks) {
         var mythicPlusScore = '';
         var mythicPlusRanks = '';
-        if(specRole == 'DPS'){
+        if(specRole === 'DPS'){
           mythicPlusScore = `**DPS Score:** ${scores.dps.toLocaleString()}\n`;
           mythicPlusRanks = `**${charClass.name} DPS Ranks:** \nRealm - ${ranks.class_dps.realm.toLocaleString()}\nRegion - ${ranks.class_dps.region.toLocaleString()}\nWorld - ${ranks.class_dps.world.toLocaleString()}\n`;
         } else
-        if(specRole == 'HEALING') {
+        if(specRole === 'HEALING') {
           mythicPlusScore = `**Healer Score:** ${scores.healer.toLocaleString()}\n`;
           mythicPlusRanks = `**${charClass.name} Healer Ranks:** \nRealm - ${ranks.class_healer.realm.toLocaleString()}\nRegion - ${ranks.class_dps.region.toLocaleString()}\nWorld - ${ranks.class_healer.world.toLocaleString()}\n`;
         } else
-        if(specRole == 'TANK') {
+        if(specRole ==='TANK') {
           mythicPlusScore = `**Tank Score:** ${scores.tank.toLocaleString()}\n`;
           mythicPlusRanks = `**${charClass.name} Tank Ranks:** \nRealm - ${ranks.class_tank.realm.toLocaleString()}\nRegion - ${ranks.class_dps.region.toLocaleString()}\nWorld - ${ranks.class_tank.world.toLocaleString()}\n`;
         }
@@ -273,47 +287,83 @@ function buildDefaultResponse(client, message, args) {
       }
 
       var artifactTraits = '0';
-      var progressionSummary = `N/A`;
+      var progressionSummary = ``;
       if (responseRaiderIo.gear) {
         if (responseRaiderIo.gear.artifact_traits) {
           artifactTraits = responseRaiderIo.gear.artifact_traits;
         }
-        var raidProgression = responseRaiderIo.raid_progression;
+        var raidProgression = response.data.progression.raids;
         if (raidProgression) {
-          progressionSummary = `**EN:**  ${raidProgression['the-emerald-nightmare'].summary}`;
-          if(achievementsCompleted.includes(ce.en)) {
-            progressionSummary += ' \`CE\`';
-          } else
-          if (achievementsCompleted.includes(aotc.en)) {
-            progressionSummary += ' \`AOTC\`';
-          }
-          progressionSummary += `\n**ToV:** ${raidProgression['trial-of-valor'].summary}`;
-          if(achievementsCompleted.includes(ce.tov)) {
-            progressionSummary += ' \`CE\`';
-          } else
-          if (achievementsCompleted.includes(aotc.tov)) {
-            progressionSummary += ' \`AOTC\`';
-          }
-          progressionSummary += `\n**NH:**  ${raidProgression['the-nighthold'].summary}`;
-          if(achievementsCompleted.includes(ce.nh)) {
-            progressionSummary += ' \`CE\`';
-          } else
-          if (achievementsCompleted.includes(aotc.nh)) {
-            progressionSummary += ' \`AOTC\`';
-          }
-          progressionSummary += `\n**ToS:** ${raidProgression['tomb-of-sargeras'].summary}`;
-          if(achievementsCompleted.includes(ce.tos)) {
-            progressionSummary += ' \`CE\`';
-          } else
-          if (achievementsCompleted.includes(aotc.tos)) {
-            progressionSummary += ' \`AOTC\`';
-          }
-          progressionSummary += `\n**ABT:** ${raidProgression['antorus-the-burning-throne'].summary}`;
-          if(achievementsCompleted.includes(ce.abt)) {
-            progressionSummary += ' \`CE\`';
-          } else
-          if (achievementsCompleted.includes(aotc.abt)) {
-            progressionSummary += ' \`AOTC\`';
+          for (var i = 0; i < progressionRaids.length; i++) {
+            if (i != 0)
+              progressionSummary += '\n';
+            for (var j = 0; j < raidProgression.length; j++) {
+              if (raidProgression[j].name == progressionRaids[i].name) {
+                var bosses = raidProgression[j].bosses;
+                var totalBosses = bosses.length;
+                var normalBossesKilled = 0;
+                var heroicBossesKilled = 0;
+                var mythicBossesKilled = 0;
+                for (var k = 0; k < totalBosses; k++) {
+                  if (bosses[k].normalKills > 0)
+                    normalBossesKilled++;
+                  if (bosses[k].heroicKills > 0)
+                    heroicBossesKilled++;
+                  if (bosses[k].mythicKills > 0)
+                    mythicBossesKilled++;
+                }
+                if (mythicBossesKilled > 0) {
+                  progressionSummary += `**${progressionRaids[i].short}:** ${mythicBossesKilled}/${totalBosses} M`;
+                }
+                else if (heroicBossesKilled > 0) {
+                  progressionSummary += `**${progressionRaids[i].short}:** ${heroicBossesKilled}/${totalBosses} H`;
+                }
+                else {
+                  progressionSummary += `**${progressionRaids[i].short}:** ${normalBossesKilled}/${totalBosses} N`;
+                }
+              }
+            }
+            if (progressionRaids[i].short === 'EN') {
+              if(achievementsCompleted.includes(ce.en)) {
+                progressionSummary += ' \`CE\`';
+              } else
+              if (achievementsCompleted.includes(aotc.en)) {
+                progressionSummary += ' \`AOTC\`';
+              }
+            } else
+            if (progressionRaids[i].short === 'ToV') {
+              if(achievementsCompleted.includes(ce.tov)) {
+                progressionSummary += ' \`CE\`';
+              } else
+              if (achievementsCompleted.includes(aotc.tov)) {
+                progressionSummary += ' \`AOTC\`';
+              }
+            } else
+            if (progressionRaids[i].short === 'NH') {
+              if(achievementsCompleted.includes(ce.nh)) {
+                progressionSummary += ' \`CE\`';
+              } else
+              if (achievementsCompleted.includes(aotc.nh)) {
+                progressionSummary += ' \`AOTC\`';
+              }
+            } else
+            if (progressionRaids[i].short === 'ToS') {
+              if(achievementsCompleted.includes(ce.tos)) {
+                progressionSummary += ' \`CE\`';
+              } else
+              if (achievementsCompleted.includes(aotc.tos)) {
+                progressionSummary += ' \`AOTC\`';
+              }
+            } else
+            if (progressionRaids[i].short === 'ABT') {
+              if(achievementsCompleted.includes(ce.abt)) {
+                progressionSummary += ' \`CE\`';
+              } else
+              if (achievementsCompleted.includes(aotc.abt)) {
+                progressionSummary += ' \`AOTC\`';
+              }
+            }
+
           }
         }
       }
@@ -848,8 +898,8 @@ function sendUsageResponse(message) {
     `-m, -mythicplus   Display mythic+ dungeon statistics for the character\n` +
     `-c, -collections  Display collection statistics for the character\n` +
     `-p, -professions  Display professions statistics for the character\n` +
-    `\n(*) = Default Value\n\nAdditional Info:\n\nCharacter data is updated on logout.\nMythic+ data is usually updated ` +
-    `within the hour.\`\`\``;
+    `\n(*) = Default Value\n\nAdditional Info:\n\nMythic+ data is usually updated ` +
+    `within the hour.\nAll other data is updated on logout.\`\`\``;
     message.channel.send(usage);
     return;
 }
