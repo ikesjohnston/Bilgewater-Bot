@@ -19,7 +19,7 @@ var region;
 var optionalArgStart = 0;
 
 exports.run = function(client, message, args) {
-  var gold = client.emojis.get('399467158691905537');
+  var gold = client.emojis.find("name", "gold");
   region = 'us';
 
   for (var i = optionalArgStart; i < args.length; i++) {
