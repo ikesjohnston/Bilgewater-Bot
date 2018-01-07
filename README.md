@@ -10,7 +10,8 @@ To configure the bot, create a file in the root project directory named "config.
 {
    "token": "{Your Discord app token}",
    "prefix": "{Character or string to precede recognized commands}", Default - >
-   "battlenet": "{Your Battle.net API token}",
+   "battlenet": "{Your Battle.net API client ID}",
+   "battlenetaccess": "{Your Battle.net API access token}",
    "ownerID": "{Your Discord user ID}",
    "game": "{Game the bot will be listed as playing on launch}" Default - >help
    "googleApi": "{Your Google Custom Search API token}",
@@ -34,3 +35,5 @@ To configure the bot, create a file in the root project directory named "config.
 \>setgame --- Sets the game that the bot is listed as playing, only the bot owner can use this command
 
 \>search --- Perform a Wowhead search
+
+\>token --- Look up current WoW token prices
