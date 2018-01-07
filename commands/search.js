@@ -1,8 +1,13 @@
 var config = require('../config.json');
-const winston = require('winston');
-const chalk = require('chalk');
-const googleSearch = require('google-search');
-const database = require('better-sqlite3');
+var googleSearch = require('google-search');
+var database = require('better-sqlite3');
+
+var chalk = require('chalk');
+var chalkLog = chalk.white;
+var chalkError = chalk.bold.red;
+
+var winston = require('winston');
+winston.add(winston.transports.File, { filename: '../logs/search.log' });
 
 var search = new googleSearch({
   key: config.googleApi,
@@ -16,7 +21,7 @@ exports.run = function(client, message, args) {
   }
   db = new database('./users.sqlite');
   try {
-    var row = db.prepare("SELECT * FROM searches WHERE userId = ?").get(message.author.id)
+    var row = db.prepare("SELECT * FROM searches WHERE userId = ?").get(message.author.id);
     if (!row) {
       db.prepare("INSERT INTO searches (userId, lastSearchTime) VALUES (?, ?)").run([message.author.id, Date.now()]);
     } else
@@ -31,8 +36,8 @@ exports.run = function(client, message, args) {
       }
     }
   }
-  catch (e) {
-    console.log(e);
+  catch (error) {
+    winston.log(chalkError(error));
     performSearch(message, args);
     db.prepare("CREATE TABLE IF NOT EXISTS searches (userId TEXT DEFAULT (''), lastSearchTime INTEGER DEFAULT (0))").run();
     db.prepare("INSERT INTO searches (userId, lastSearchTime) VALUES (?, ?)").run([message.author.id, Date.now()]);
@@ -41,6 +46,7 @@ exports.run = function(client, message, args) {
 
 function performSearch(message, args) {
   var searchQuery = args.join(' ');
+  winston.log(chalkError(`${message.author.name} searched for ${searchquery}`));
   search.build({
     q: searchQuery,
     num: 1,
@@ -48,19 +54,19 @@ function performSearch(message, args) {
     if (error) {
       var owner = client.users.get(config.ownerID);
       message.channel.send(`Something's not quite right... Complain to ${owner}`);
-      console.log(error);
+      winston.log(chalkError(error));
     }
-    if(response.items.length > 0) {
+    if(response.items && response.items.length > 0) {
       var result = response.items[0];
       message.channel.send(`**${result.title}**\n${result.link}`);
     } else {
-      message.channel.send(`\`\`\`No search results found\`\`\``);
+      message.channel.send(`\`\`\`No search results found.\`\`\``);
     }
   });
 }
 
 function sendUsageResponse(message) {
   var usage = `\`\`\`Usage: \n\n${config.prefix}search <query>\`\`\``;
-    message.channel.send(usage);
-    return;
+  message.channel.send(usage);
+  return;
 }

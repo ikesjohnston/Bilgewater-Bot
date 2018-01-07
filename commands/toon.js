@@ -24,6 +24,7 @@ const warcraftLogsUrl = 'https://www.warcraftlogs.com/character/%s/%s/%s';
 
 const validRegions = ['us', 'eu', 'kr', 'tw'];
 
+// 'Ahead of the Curve' achievement IDs
 const aotc = {
   'en': 11194,
   'tov': 11581,
@@ -32,6 +33,7 @@ const aotc = {
   'abt': 12110
 };
 
+// 'Cutting Edge' achievement IDs
 const ce = {
   'en': 11191,
   'tov': 11580,
@@ -42,6 +44,7 @@ const ce = {
 
 const dungeonBannerUrl = 'https://assets.raider.io/images/dungeons/%s.jpg';
 
+// Spell names for dungeon icon rendering
 const dungeonIcons = {
     'mos': 'achievement_dungeon_mawofsouls',
     'votw': 'achievement_dungeon_vaultofthewardens',
@@ -58,6 +61,7 @@ const dungeonIcons = {
     'sott': 'achievement_boss_triumvirate_darknaaru'
 };
 
+// Keystone level achievement IDs
 var keystoneAchievements = {
   'initiate': 11183,
   'challanger': 11184,
@@ -70,9 +74,13 @@ var realm = '';
 var region= '';
 
 exports.run = function(client, message, args) {
-  region = 'us';
-
   var bookmarkFound = false;
+  var optionalArgStart = 1;
+  var getCollections = false;
+  var getProfessions = false;
+  var getAchievements = false;
+  var getMythicPlus = false;
+  region = 'us';
 
   if(args.length >= 1) {
     var bookmarkValues = bookmark.findBookmarkValues(message.author.id, args[0]);
@@ -84,23 +92,15 @@ exports.run = function(client, message, args) {
     }
   }
 
-  var optionalArgStart = 1;
-
   if(!bookmarkFound) {
     if(args.length < 2) {
       sendUsageResponse(message);
       return;
     }
-
     optionalArgStart = 2;
     character = args[0];
-    realm = args[1];//.replace('-', ' ');
+    realm = args[1];
   }
-
-  var getCollections = false;
-  var getProfessions = false;
-  var getAchievements = false;
-  var getMythicPlus = false;
 
   for (var i = optionalArgStart; i < args.length; i++) {
     var arg = args[i].toLowerCase();
@@ -177,12 +177,6 @@ function buildDefaultResponse(client, message, args) {
       var characterImageUrlMain = characterImageUrlThumbnail.replace('avatar', 'main');
       var characterImageUrlInset = characterImageUrlThumbnail.replace('avatar', 'inset');
 
-      // Blue embed color for alliance, red for horde
-      var embedColor = 0x004fce;
-      if(response.data.faction == 1) {
-        embedColor = 0xad0505;
-      }
-
       var charLevel = response.data.level;
 
       var charRace;
@@ -202,23 +196,12 @@ function buildDefaultResponse(client, message, args) {
       }
 
       var stats = response.data.stats;
-
       var items = response.data.items;
-
       var pvpBrackets = response.data.pvp.brackets;
-
       var achievementsCompleted = response.data.achievements.achievementsCompleted;
 
-      var titles = response.data.titles;
-      var titleSelected = '%s';
-      for(i = 0; i < titles.length; i++) {
-        if(titles[i].selected) {
-          titleSelected = titles[i].name;
-          break;
-        }
-      }
-
-      var charName = titleSelected.replace('%s', response.data.name);
+      var embedColor = getFactionEmbedColor(response.data.faction);
+      var charName = getNameAndTitle(response.data);
 
       var talents = response.data.talents;
       var currentSpec;
@@ -234,12 +217,10 @@ function buildDefaultResponse(client, message, args) {
 
       var mainStat = 'Intellect';
       var mainStatValue = stats.int;
-
       if(stats.agi > mainStatValue) {
         mainStat = 'Agility';
         mainStatValue = stats.agi;
       }
-
       if(stats.str > mainStatValue) {
         mainStat = 'Strength';
         mainStatValue = stats.str;
@@ -417,26 +398,10 @@ function buildDefaultResponse(client, message, args) {
 function buildCollectionsResponse(client, message, args) {
   blizzard.wow.character(['titles', 'mounts', 'pets'], { origin: region, realm: realm, name: character })
   .then(response => {
-    // Blue embed color for alliance, red for horde
-    var embedColor = 0x004fce;
-    if(response.data.faction == 1) {
-      embedColor = 0xad0505;
-    }
-
-    var titles = response.data.titles;
-    var titleSelected = '%s';
-    for(i = 0; i < titles.length; i++) {
-      if(titles[i].selected) {
-        titleSelected = titles[i].name;
-        break;
-      }
-    }
-
-    var charName = titleSelected.replace('%s', response.data.name);
-
+    var embedColor = getFactionEmbedColor(response.data.faction);
+    var charName = getNameAndTitle(response.data);
     var collectedMounts = response.data.mounts.collected;
     var collectedPets = response.data.pets.collected;
-    //console.log(collectedMounts);
     var randomCollected = '';
     var collectedSelector = getRandomIntInclusive(0, 1);
     if (collectedSelector === 0) {
@@ -510,22 +475,9 @@ function buildProfessionsResponse(client, message, args) {
   blizzard.wow.character(['titles', 'professions'], { origin: region, realm: realm, name: character })
   .then(response => {
     var professions = response.data.professions;
-    // Blue embed color for alliance, red for horde
-    var embedColor = 0x004fce;
-    if(response.data.faction == 1) {
-      embedColor = 0xad0505;
-    }
 
-    var titles = response.data.titles;
-    var titleSelected = '%s';
-    for(i = 0; i < titles.length; i++) {
-      if(titles[i].selected) {
-        titleSelected = titles[i].name;
-        break;
-      }
-    }
-
-    var charName = titleSelected.replace('%s', response.data.name);
+    var embedColor = getFactionEmbedColor(response.data.faction);
+    var charName = getNameAndTitle(response.data);
     var professionsAuthorIconUrl = util.format(iconRenderUrl, region, iconSize, 'inv_pick_02');
     var professionsIconUrl = 'inv_pick_02';
     var primaryProfessionsSummary = '';
@@ -602,20 +554,9 @@ function buildAchievementsResponse(client, message, args) {
     var achievements = response.data.achievements;
     var achievementsCompleted = achievements.achievementsCompleted;
     console.log(achievementsCompleted);
-    // Blue embed color for alliance, red for horde
-    var embedColor = 0x004fce;
-    if(response.data.faction == 1) {
-      embedColor = 0xad0505;
-    }
 
-    var titles = response.data.titles;
-    var titleSelected = '%s';
-    for(i = 0; i < titles.length; i++) {
-      if(titles[i].selected) {
-        titleSelected = titles[i].name;
-        break;
-      }
-    }
+    var embedColor = getFactionEmbedColor(response.data.faction);
+    var charName = getNameAndTitle(response.data);
 
     var charName = titleSelected.replace('%s', response.data.name);
     var achievementsAuthorIconUrl = util.format(iconRenderUrl, region, iconSize, 'inv_pick_02');
@@ -683,22 +624,8 @@ function buildMythicPlusResponse(client, message, args) {
           }
         }
 
-        // Blue embed color for alliance, red for horde
-        var embedColor = 0x004fce;
-        if(response.data.faction == 1) {
-          embedColor = 0xad0505;
-        }
-
-        var titles = response.data.titles;
-        var titleSelected = '%s';
-        for(i = 0; i < titles.length; i++) {
-          if(titles[i].selected) {
-            titleSelected = titles[i].name;
-            break;
-          }
-        }
-
-        var charName = titleSelected.replace('%s', response.data.name);
+        var embedColor = getFactionEmbedColor(response.data.faction);
+        var charName = getNameAndTitle(response.data);
 
         var charArmoryUrl = getArmoryUrl();
         var charRaiderIoUrl = util.format(raiderIoUrl, region, realm.replace(' ', '-'), character);
@@ -836,7 +763,7 @@ function buildMythicPlusResponse(client, message, args) {
            ],
            footer: {
              icon_url: bilgewaterIconUrl,
-             text: 'Mythic+ Performance Data | Powered by Bilgewater Bot'
+             text: 'Mythic+ Performance Data | Powered by Raider.IO'
            }
          }});
       }).catch(error => {
@@ -860,6 +787,27 @@ function isValidRegion(region) {
       return true;
   }
   return false;
+}
+
+function getFactionEmbedColor (faction) {
+  var embedColor = 0x004fce; // Blue for Alliance
+  if(faction == 1) {
+    embedColor = 0xad0505; // Red for Horde
+  }
+  return embedColor
+}
+
+function getNameAndTitle(data) {
+  var titles = data.titles;
+  var titleSelected = '%s';
+  for(i = 0; i < titles.length; i++) {
+    if(titles[i].selected) {
+      titleSelected = titles[i].name;
+      break;
+    }
+  }
+  var name = titleSelected.replace('%s', data.name);
+  return name;
 }
 
 function getArmoryUrl() {

@@ -3,5 +3,5 @@ const chalk = require('chalk');
 
 module.exports = client => {
 	console.log(chalk.bgGreen.black('Client is ready!'));
-	client.user.setGame(config.game);
+	client.user.setGame(`${config.prefix}${config.game}`);
 }

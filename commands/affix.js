@@ -11,6 +11,7 @@ const bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
 
 const mythicPlusUrl = 'https://mythicpl.us/';
 const affixUrl = 'http://www.wowhead.com/affix=%s'
+const raiderIoRequestUrl = 'https://raider.io/api/v1/mythic-plus/affixes?region=us'
 
 const weeklyAffixReport = `**(4)**[%s](${affixUrl}) **(7)**[%s](${affixUrl}) **(10)**[%s](${affixUrl})`
 
@@ -50,6 +51,9 @@ var affixSchedule = [
   [11, 14, 10]
 ];
 
+var thisWeek = [0, 0, 0];
+var thisWeekIndex = 0;
+
 exports.run = function(client, message, args) {
 
   if (args.length > 1) {
@@ -69,7 +73,7 @@ exports.run = function(client, message, args) {
   }
 
   message.reply("fetching affix data for you...");
-  request('https://raider.io/api/v1/mythic-plus/affixes?region=us', { json: true }, (err, res, body) => {
+  request(raiderIoRequestUrl, { json: true }, (err, res, body) => {
     if (err) {
       var owner = client.users.get(config.ownerID);
       message.channel.send(`Something's not quite right... Complain to ${owner}`);
@@ -111,17 +115,7 @@ function getWeeklyAffixes(affixIds) {
   return affixes;
 }
 
-function sendUsageResponse(message) {
-  var usage = `\`\`\`Usage: \n\n${config.prefix}affix\n\nOptional Arguments:\n\n-s     Get the rotation schedule for Mythic+ affixes\`\`\``;
-    message.channel.send(usage);
-    return;
-}
-
-function sendAffixResponse(affixes, message) {
-  var mpIconUrl = util.format(iconRenderUrl, region, 'inv_relics_hourglass');
-  var thisWeek = [0, 0, 0]
-  var thisWeekIndex = 0;
-
+function getThisWeek(affixes) {
   for (var i = 0; i < affixes.length; i++) {
     for (var j = 0; j < affixList.length; j++) {
       if (affixes[i].name === affixList[j].name) {
@@ -131,7 +125,7 @@ function sendAffixResponse(affixes, message) {
     }
   }
 
-  for (var i = 0; i < affixSchedule.length; i++) {
+  for (i = 0; i < affixSchedule.length; i++) {
     if (affixSchedule[i].every(function(u, i) {
         return u === thisWeek[i];
       })
@@ -140,7 +134,18 @@ function sendAffixResponse(affixes, message) {
       break;
     }
   }
+}
 
+function sendUsageResponse(message) {
+  var usage = `\`\`\`Usage: \n\n${config.prefix}affix\n\nOptional Arguments:\n\n-s     Get the rotation schedule for Mythic+ affixes\`\`\``;
+    message.channel.send(usage);
+    return;
+}
+
+function sendAffixResponse(affixes, message) {
+  var mpIconUrl = util.format(iconRenderUrl, region, 'inv_relics_hourglass');
+
+  getThisWeek(affixes);
 
   var nextWeek = getWeeklyAffixes(getFutureWeek(thisWeekIndex, 1));
   var nextWeeksAffixesString = util.format(weeklyAffixReport, nextWeek[0].name, nextWeek[0].id, nextWeek[1].name,
@@ -191,40 +196,25 @@ function sendAffixResponse(affixes, message) {
 
 function sendScheduleResponse(affixes, message) {
   var mpIconUrl = util.format(iconRenderUrl, region, 'inv_relics_hourglass');
-  var thisWeek = [0, 0, 0]
-  var thisWeekIndex = 0;
 
-  for (var i = 0; i < affixes.length; i++) {
-    for (var j = 0; j < affixList.length; j++) {
-      if (affixes[i].name === affixList[j].name) {
-        thisWeek[i] = affixList[j].id;
-        break;
-      }
-    }
-  }
-
-  for (var i = 0; i < affixSchedule.length; i++) {
-    if (affixSchedule[i].every(function(u, i) {
-        return u === thisWeek[i];
-      })
-    ) {
-      thisWeekIndex = i;
-      break;
-    }
-  }
+  getThisWeek(affixes);
 
   var affixScheduleString = '';
 
-  var thisWeek = getWeeklyAffixes(affixSchedule[0]);
+  var week = getWeeklyAffixes(affixSchedule[thisWeekIndex]);
   var thisWeekString = `**This Week - **`;
-  thisWeekString += pad(`(4) ${thisWeek[0].name} - `, 16);
-  thisWeekString += pad(`(7) ${thisWeek[1].name} - `, 16);
-  thisWeekString += pad(`(10) ${thisWeek[2].name}`, 16);
+  thisWeekString += pad(`(4) ${week[0].name} - `, 16);
+  thisWeekString += pad(`(7) ${week[1].name} - `, 16);
+  thisWeekString += pad(`(10) ${week[2].name}`, 16);
 
   const dayINeed = 2; // for Tuesday
   for (var i = 1; i < affixSchedule.length; i++) {
-    var date = moment().add(i - 1, 'weeks').isoWeekday(dayINeed).format('MM/DD/YYYY');
-    var week = getWeeklyAffixes(affixSchedule[i]);
+    var date = moment().add(i, 'weeks').isoWeekday(dayINeed).format('MM/DD/YYYY');
+    var scheduleIndex = thisWeekIndex + i;
+    if (scheduleIndex >= affixSchedule.length) {
+      scheduleIndex -= (affixSchedule.length);
+    }
+    week = getWeeklyAffixes(affixSchedule[scheduleIndex]);
     var weekString = `**${date} - **`;
     weekString += `(4) ${week[0].name} - `;
     weekString += `(7) ${week[1].name} - `;
@@ -239,7 +229,7 @@ function sendScheduleResponse(affixes, message) {
       name: 'Mythic+ Affix Schedule',
       icon_url: mpIconUrl
      },
-     description: 'Keystones are on a 12 week rotation.\n[Additional Info.](https://mythicpl.us/)',
+     description: `Keystones are on a 12 week rotation.\n[Additional Info.](${mythicPlusUrl})`,
      thumbnail: {
        url: mpIconUrl
      },
@@ -251,7 +241,7 @@ function sendScheduleResponse(affixes, message) {
      ],
      footer: {
        icon_url: bilgewaterIconUrl,
-       text: 'Mythic+ Affix Data | Powered by Bilgewater Bot'
+       text: 'Mythic+ Affix Data | Powered by Raider.IO'
      }
    }});
 }
