@@ -1,13 +1,20 @@
 {
-  "name": "Bilgewater Bot",
+  "name": "bilgewater",
   "version": "1.0.0",
   "description": "World of Warcraft Discord Bot",
   "main": "bot.js",
   "author": "Ike Johnston",
   "dependencies": {
+    "better-sqlite3": "^4.0.3",
     "blizzard.js": "^2.0.3",
     "chalk": "^2.3.0",
+    "cheerio": "^1.0.0-rc.2",
     "discord.js": "^11.2.1",
+    "fs": "0.0.1-security",
+    "google-search": "0.0.5",
+    "moment": "^2.19.4",
+    "node-schedule": "^1.3.0",
+    "pad": "^2.0.3",
     "request": "^2.81.0",
     "return-deep-diffs": "^0.2.11",
     "winston": "^2.4.0"
