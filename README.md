@@ -16,7 +16,7 @@ To configure the bot, create a file in the root project directory named "config.
    "game": "{Game the bot will be listed as playing on launch}" Default - >help
    "googleApi": "{Your Google Custom Search API token}",
    "googleCx": "{Your Google Custom Search CX ID}",
-   "searchDelay": {Time in seconds user must wait to search again}
+   "searchDelay": "{Time in seconds user must wait to search again}"
 }
 ```
 
