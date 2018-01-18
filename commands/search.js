@@ -7,7 +7,7 @@ var chalkLog = chalk.white;
 var chalkError = chalk.bold.red;
 
 var winston = require('winston');
-winston.add(winston.transports.File, { filename: '../logs/search.log' });
+//winston.add(winston.transports.File, { filename: '../logs/search.log' });
 
 var search = new googleSearch({
   key: config.googleApi,
@@ -19,7 +19,7 @@ exports.run = function(client, message, args) {
     sendUsageResponse(message);
     return;
   }
-  db = new database('./users.sqlite');
+  db = new database('data/users.sqlite');
   try {
     var row = db.prepare("SELECT * FROM searches WHERE userId = ?").get(message.author.id);
     if (!row) {
@@ -46,7 +46,7 @@ exports.run = function(client, message, args) {
 
 function performSearch(message, args) {
   var searchQuery = args.join(' ');
-  winston.log(chalkError(`${message.author.name} searched for ${searchquery}`));
+  winston.log('info', chalkLog(`${message.author.username} searched for \'${searchQuery}\'`));
   search.build({
     q: searchQuery,
     num: 1,
@@ -54,7 +54,7 @@ function performSearch(message, args) {
     if (error) {
       var owner = client.users.get(config.ownerID);
       message.channel.send(`Something's not quite right... Complain to ${owner}`);
-      winston.log(chalkError(error));
+      winston.log('error', chalkError(error));
     }
     if(response.items && response.items.length > 0) {
       var result = response.items[0];

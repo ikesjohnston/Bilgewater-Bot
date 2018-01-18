@@ -5,7 +5,7 @@ module.exports = message => {
 
 	const client = message.client;
 	const args = message.content.split(' ');
-	const command = args.shift().slice(config.prefix.length);
+	const command = args.shift().slice(config.prefix.length).toLowerCase();
 
 	try {
 		let cmdFile = require(`../commands/${command}`);

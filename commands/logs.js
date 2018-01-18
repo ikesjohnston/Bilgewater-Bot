@@ -9,6 +9,7 @@ const bookmark = require('./bookmarks');
 const zoneImageUrl = 'https://www.warcraftlogs.com/img/icons/warcraft/zone-%d-small.jpg';
 const encounterImageUrl = 'https://www.warcraftlogs.com/img/bosses/%d-icon.jpg';
 const bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
+const warcraftLogsIconUrl = 'https://i.imgur.com/u4ixFem.png'
 
 const requestZoneUrl = 'https://www.warcraftlogs.com:443/v1/zones?api_key=%s';
 const requestRaidParsesUrl = 'https://www.warcraftlogs.com:443/v1/parses/character/%s/%s/%s?zone=%s&metric=%s&api_key=%s';
@@ -78,6 +79,7 @@ exports.run = function(client, message, args) {
 
 
     var bookmarkFound = false;
+    var mainFound = false;
 
     if(args.length >= 1) {
       if (args[0] === 'raids') {
@@ -88,22 +90,32 @@ exports.run = function(client, message, args) {
         requestEncounters(client, message, responseZones, zone);
         return;
       } else {
-        var potentialBookmark = args[0];
-        var bookmarkValues = bookmark.findBookmarkValues(message.author.id, args[0]);
-        if(bookmarkValues.character != null) {
+        var main = bookmark.findMain(message.author.id);
+        var bookmarkValues = bookmark.findBookmark(message.author.id, args[0]);
+        if(bookmarkValues != undefined) {
           character = bookmarkValues.character;
           realm = bookmarkValues.realm;
           region = bookmarkValues.region;
           bookmarkFound = true;
+        } else
+        if (main != undefined) {
+          character = main.character;
+          realm = main.realm;
+          region = main.region;
+          mainFound = true;
         }
       }
     }
 
-    if ((!bookmarkFound && args.length < 3) || (bookmarkFound && args.length < 2)) {
+    if (args.length === 0 || (!mainFound && !bookmarkFound && args.length < 3) || (bookmarkFound && args.length < 2)) {
       sendUsageResponse(message);
       return;
     } else {
       var optionalArgStart = 3;
+      if(mainFound && zoneNames.includes(args[0])) {
+        zone = args[0];
+        optionalArgStart = 1;
+      } else
       if(bookmarkFound) {
         zone = args[1];
         optionalArgStart = 2;
@@ -241,6 +253,7 @@ function requestEncounters(client, message, responseZones, zone) {
 }
 
 function requestParses(client, message, responseZones) {
+  console.log(`${zone} ${character} ${realm} ${region}`);
   if (!isValidZone(zone)) {
     var errorMessage = `\`\`\`Invalid raid or bad bookmark. Type ${config.prefix}logs raids for a list of valid raids.\`\`\``;
     message.channel.send(errorMessage);
@@ -432,8 +445,8 @@ function sendRaidParseResponse(message, responseZones, responseParses, zoneId) {
         }
       ],
       footer: {
-        icon_url: bilgewaterIconUrl,
-        text: 'Raid Logs | Powered by Bilgewater Bot'
+        icon_url: warcraftLogsIconUrl,
+        text: 'Raid Logs | Powered by Warcraft Logs'
       },
   }});
 }
@@ -554,8 +567,8 @@ function sendEncounterParseResponse(message, responseZones, responseParses, zone
         }
       ],
       footer: {
-        icon_url: bilgewaterIconUrl,
-        text: 'Encounter Logs | Powered by Bilgewater Bot'
+        icon_url: warcraftLogsIconUrl,
+        text: 'Encounter Logs | Powered by Warcraft Logs'
       }
   }});
 }

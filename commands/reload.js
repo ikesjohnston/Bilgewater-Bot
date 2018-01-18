@@ -5,7 +5,7 @@ const chalk = require('chalk');
 exports.run = (client, message, args) => {
   if(message.author.id !== config.ownerID)
   {
-    console.log(`${message.author.id} tried to reload a command.`)
+    console.log(`${message.author.username} tried to reload a command.`)
     message.channel.send("\`\`\`You do not have permission to do that.\`\`\`");
     return;
   }

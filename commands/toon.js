@@ -14,6 +14,7 @@ var winston = require('winston');
 //winston.add(winston.transports.File, { filename: '../logs/search.log' });
 
 var bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
+var raiderIoIconUrl = 'https://i.imgur.com/Y4z99aV.jpg';
 var charRenderUrl = 'https://render-%s.worldofwarcraft.com/character/%s';
 var iconRenderUrl = 'https://render-%s.worldofwarcraft.com/icons/%d/%s.jpg';
 
@@ -95,9 +96,23 @@ exports.run = function(client, message, args) {
   var getMythicPlus = false;
   region = 'us';
 
-  if(args.length >= 1) {
-    var bookmarkValues = bookmark.findBookmarkValues(message.author.id, args[0]);
-    if(bookmarkValues.character != null) {
+  var realmSpecified = false;
+  var regionSpecified = false;
+
+  if (args.length >= 0) {
+    var main = bookmark.findMain(message.author.id);
+    if (main != undefined && (args.length === 0 || args[0][0] === '-')) { // No arguments or only optional arguments
+      character = main.character;
+      realm = main.realm;
+      region = main.region;
+      bookmarkFound = true;
+      optionalArgStart = 0;
+    }
+  }
+
+  if (args.length >= 1) {
+    var bookmarkValues = bookmark.findBookmark(message.author.id, args[0]);
+    if(bookmarkValues != undefined) {
       character = bookmarkValues.character;
       realm = bookmarkValues.realm;
       region = bookmarkValues.region;
@@ -105,7 +120,7 @@ exports.run = function(client, message, args) {
     }
   }
 
-  if(!bookmarkFound) {
+  if (!bookmarkFound) {
     if(args.length < 2) {
       sendUsageResponse(message);
       return;
@@ -812,7 +827,7 @@ function buildMythicPlusResponse(client, message, args) {
              }
            ],
            footer: {
-             icon_url: bilgewaterIconUrl,
+             icon_url: raiderIoIconUrl,
              text: 'Mythic+ Performance Data | Powered by Raider.IO'
            }
          }});

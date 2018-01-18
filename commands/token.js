@@ -1,5 +1,6 @@
 var config = require('../config.json');
 var blizzard = require('blizzard.js').initialize({ apikey: config.battlenet });
+var bookmark = require('./bookmarks');
 
 var chalk = require('chalk');
 var chalkLog = chalk.white;
@@ -15,10 +16,12 @@ var wowTokenUrl = 'http://wowtokenprices.com/';
 var validRegions = ['us', 'eu', 'kr', 'tw', 'cn'];
 var embedColor = 0xccaa00;
 
-var region;
+var region = '';
 var optionalArgStart = 0;
 
 exports.run = function(client, message, args) {
+  var regionSpecified = false;
+
   var gold = client.emojis.find("name", "gold");
   region = 'us';
 
@@ -37,12 +40,22 @@ exports.run = function(client, message, args) {
         return;
       }
       region = args[i];
+      regionSpecified = true;
     }
     if (arg === '-h') {
       sendUsageResponse(message);
     }
   }
 
+  if(!regionSpecified) {
+    var main = bookmark.findMain(message.author.id);
+    if (main != undefined) {
+      region = main.region.toLowerCase();
+      console.log(`main region is ${main.region.toLowerCase()}`)
+    }
+  }
+
+  message.reply("fetching token prices for you...")
   blizzard.data.token({ access_token: config.battlenetaccess, namespace: `dynamic-${region}`, origin: region })
     .then(response => {
       var tokenPrice = response.data.price / 10000;
@@ -60,7 +73,7 @@ exports.run = function(client, message, args) {
          fields: [
            {
              name: `${region.toUpperCase()}`,
-             value: `${tokenPrice.toLocaleString()} ${gold.toString()}`
+             value: `${tokenPrice.toLocaleString()}${gold.toString()}`
            },
          ],
          footer: {
