@@ -12,6 +12,8 @@ To configure the bot, create a file in the root project directory named "config.
    "prefix": "{Character or string to precede recognized commands}", Default - >
    "battlenet": "{Your Battle.net API client ID}",
    "battlenetaccess": "{Your Battle.net API access token}",
+   "warcraftLogs": "{Your Warcraft Logs API access token}",
+   "tsm": "{Your Trade Skill Master API access token}",
    "ownerID": "{Your Discord user ID}",
    "game": "{Game the bot will be listed as playing on launch}" Default - >help
    "googleApi": "{Your Google Custom Search API token}",
