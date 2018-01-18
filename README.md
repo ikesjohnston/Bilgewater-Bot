@@ -37,3 +37,5 @@ To configure the bot, create a file in the root project directory named "config.
 \>search --- Perform a Wowhead search
 
 \>token --- Look up current WoW token prices
+
+\>price --- Look up current auction prices for an item
