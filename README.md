@@ -35,16 +35,26 @@ To configure the bot, create a file in the root project directory named "config.
    "searchDelay": ""
 }
 ```
-**token:** Your Discord app token\n
+**token:** Your Discord app token
+
 **prefix:** Character or string to precede recognized commands, **Default is '>'**
+
 **battlenet**: Your Battle.net API client ID
+
 **battlenetaccess:** Your Battle.net API access token
+
 **warcraftLogs:** Your Warcraft Logs API access token
+
 **tsm:** Your Trade Skill Master API access token
+
 **ownerID:** Your Discord user ID
+
 **game:** Game the bot will be listed as playing on launch, **Default is 'help'**
+
 **googleApi:** Your Google Custom Search API token
+
 **googleCx:** Your Google Custom Search CX ID
+
 **searchDelay:** Time in seconds user must wait to search again
    
 ### Commands
