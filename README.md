@@ -35,7 +35,7 @@ To configure the bot, create a file in the root project directory named "config.
    "searchDelay": ""
 }
 ```
-**token:** Your Discord app token
+**token:** Your Discord app token\n
 **prefix:** Character or string to precede recognized commands, **Default is '>'**
 **battlenet**: Your Battle.net API client ID
 **battlenetaccess:** Your Battle.net API access token
