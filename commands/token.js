@@ -1,13 +1,7 @@
 var config = require('../config.json');
 var blizzard = require('blizzard.js').initialize({ apikey: config.battlenet });
 var bookmark = require('./bookmarks');
-
-var chalk = require('chalk');
-var chalkLog = chalk.white;
-var chalkError = chalk.bold.red;
-
-var winston = require('winston');
-//winston.add(winston.transports.File, { filename: '../logs/search.log' });
+var logging = require('../util/logging');
 
 var bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
 var tokenImageUrl = 'http://wowtokenprices.com/assets/wowtokeninterlaced.png';
@@ -20,6 +14,9 @@ var region = '';
 var optionalArgStart = 0;
 
 exports.run = function(client, message, args) {
+  message.reply("sorry, this command is currently inactive due to Blizzard API changes.");
+  return;
+
   var regionSpecified = false;
 
   var gold = client.emojis.find("name", "gold");
@@ -51,7 +48,6 @@ exports.run = function(client, message, args) {
     var main = bookmark.findMain(message.author.id);
     if (main != undefined) {
       region = main.region.toLowerCase();
-      console.log(`main region is ${main.region.toLowerCase()}`)
     }
   }
 
@@ -81,6 +77,14 @@ exports.run = function(client, message, args) {
            text: 'WoW Token Price Data | Powered by Bilgewater Bot'
          }
        }});
+    })
+    .catch(error => {
+       message.reply("error getting token prices.")
+
+       logging.priceLogger.log({
+         level: 'Error',
+         message: `(token.js:run) Token request to Battle.net failed:\n${error.message}`
+       });
     });
 };
 

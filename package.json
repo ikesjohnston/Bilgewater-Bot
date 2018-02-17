@@ -1,5 +1,5 @@
 {
-  "name": "bilgewater",
+  "name": "Bilgewater Bot",
   "version": "1.0.0",
   "description": "World of Warcraft Discord Bot",
   "main": "bot.js",
@@ -17,6 +17,6 @@
     "pad": "^2.0.3",
     "request": "^2.81.0",
     "return-deep-diffs": "^0.2.11",
-    "winston": "^2.4.0"
+    "winston": "^3.0.0-rc1"
   }
 }

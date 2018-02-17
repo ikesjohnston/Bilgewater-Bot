@@ -1,15 +1,18 @@
 const config = require('../config.json');
-const winston = require('winston');
-const chalk = require('chalk');
 const util = require('util');
 const request = require('request');
 const database = require('better-sqlite3');
 const bookmark = require('./bookmarks');
 
+const common = require('..//util//common');
+const logging = require('..//util//logging');
+const warcraftLogs = require('..//util//warcraftLogs');
+
 const zoneImageUrl = 'https://www.warcraftlogs.com/img/icons/warcraft/zone-%d-small.jpg';
 const encounterImageUrl = 'https://www.warcraftlogs.com/img/bosses/%d-icon.jpg';
-const bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
 const warcraftLogsIconUrl = 'https://i.imgur.com/u4ixFem.png'
+
+const characterLogsUrl = 'https://www.warcraftlogs.com/rankings/character/%s/%s/#difficulty=%s&metric=%s';
 
 const requestZoneUrl = 'https://www.warcraftlogs.com:443/v1/zones?api_key=%s';
 const requestRaidParsesUrl = 'https://www.warcraftlogs.com:443/v1/parses/character/%s/%s/%s?zone=%s&metric=%s&api_key=%s';
@@ -18,16 +21,11 @@ const requestEncounterParseUrl = 'https://www.warcraftlogs.com:443/v1/parses/cha
 const zoneLogsUrl = 'https://www.warcraftlogs.com/rankings/%s#difficulty=%s&metric=%s';
 const encounterLogsUrl = '&boss=%s';
 
-const charUrl = 'https://www.warcraftlogs.com/character/%s/%s/%s';
-const characterLogsUrl = 'https://www.warcraftlogs.com/rankings/character/%s/%s/#difficulty=%s&metric=%s';
-
 const reportUrl = 'https://www.warcraftlogs.com/reports/%s#fight=%s&type=summary';
 
 const zoneIds = [4, 5, 6, 7, 8, 10, 12, 11, 13, 17];
 
 const zoneNames = ['tot', 'soo', 'hm', 'brf', 'hfc', 'en', 'tov', 'nh', 'tos', 'abt'];
-
-const validRegions = ['us', 'eu', 'kr', 'tw'];
 
 const validDifficulties = ['n', 'h', 'm'];
 
@@ -37,30 +35,38 @@ const difficultyNames = ['Normal', 'Heroic', 'Mythic'];
 
 const validMetrics = ['dps', 'hps'];
 
-var character;
-var realm;
-var region;
+var character = '';
+var realm = '';
+var region = '';
 
-var zone;
-var zoneId;
-var zoneName;
-var difficulty;
-var encounterId;
-var encounterName;
-var metric;
+var zone = '';
+var zoneId = '';
+var zoneName = '';
+var difficulty = '';
+var encounterId = '';
+var encounterName = '';
+var metric = '';
 
-var zoneImgUrl;
-var encounterImgUrl;
+var zoneImgUrl = '';
+var encounterImgUrl = '';
 
-var requestZones = requestZoneUrl.replace('%s', config.warcraftLogs);
 var requestParsesUrl = '';
 
+var embedColor = 0xccc05b;
+
 exports.run = function(client, message, args) {
+
+  var requestZones = requestZoneUrl.replace('%s', config.warcraftLogs);
+
   request(requestZones, { json: true }, (err, res, body) => {
     if (err) {
       var owner = client.users.get(config.ownerID);
       message.channel.send(`Something's not quite right... Error requesting zones from Warcraft Logs. Complain to ${owner}`);
-      return console.log(err);
+      logging.logsLogger.log({
+        level: 'Error',
+        message: `(logs.js:run) Request for Zones from Warcraft Logs failed: ${err}`
+      });
+      return;
     }
 
     var responseZones = res.body;
@@ -126,7 +132,6 @@ exports.run = function(client, message, args) {
       }
 
       for (var i = optionalArgStart; i < args.length; i++) {
-        //console.log(`Processing argument ${i}: ${args[i]}`);
         switch (args[i]) {
           case '-r':
             if (i >= args.length - 1) {
@@ -253,7 +258,6 @@ function requestEncounters(client, message, responseZones, zone) {
 }
 
 function requestParses(client, message, responseZones) {
-  console.log(`${zone} ${character} ${realm} ${region}`);
   if (!isValidZone(zone)) {
     var errorMessage = `\`\`\`Invalid raid or bad bookmark. Type ${config.prefix}logs raids for a list of valid raids.\`\`\``;
     message.channel.send(errorMessage);
@@ -266,7 +270,11 @@ function requestParses(client, message, responseZones) {
       if (err) {
         var owner = client.users.get(config.ownerID);
         message.channel.send(`Something's not quite right... Error requesting parses from Warcraft Logs. Complain to ${owner}`);
-        return console.log(err);
+        logging.logsLogger.log({
+          level: 'Error',
+          message: `(logs.js:requestParses) Request for parses from Warcraft Logs failed: ${err}`
+        });
+        return;
       }
 
       responseParses = res.body;
@@ -303,14 +311,6 @@ function isValidEncounter(responseZones, zone, encounterId) {
         }
       }
     }
-  }
-  return false;
-}
-
-function isValidRegion(region) {
-  for (var i = 0; i < validRegions.length; i++) {
-    if (validRegions[i].toLowerCase() == region.toLowerCase())
-      return true;
   }
   return false;
 }
@@ -400,7 +400,7 @@ function sendRaidParseResponse(message, responseZones, responseParses, zoneId) {
     allStarPoints = allStarPoints.toFixed(1);
   } else {
     var charSummary = util.format(charUrl, region, realm, character);
-    var errorMessage = `\`\`\`No logs for ${capitalizeFirstLetter(character)} @ ${capitalizeFirstLetter(realm)} found for ${difficultyName} ${zoneName}.\`\`\``;
+    var errorMessage = `\`\`\`No logs for ${common.capitalizeFirstLetter(character)} @ ${common.capitalizeFirstLetter(realm)} found for ${difficultyName} ${zoneName}.\`\`\``;
     message.channel.send(errorMessage);
     return;
   }
@@ -408,9 +408,9 @@ function sendRaidParseResponse(message, responseZones, responseParses, zoneId) {
   var lastRunUrl = util.format(reportUrl, lastReportId, '-2');
   var charLogs = `[Full Logs](${charLogsUrl}) | [Last Report](${lastRunUrl})`
   message.channel.send({embed: {
-     color: 0xccc05b,
+     color: embedColor,
      author: {
-       name: `Rankings for ${capitalizeFirstLetter(character)} @ ${capitalizeFirstLetter(realm)}`,
+       name: `Rankings for ${common.capitalizeFirstLetter(character)} @ ${common.capitalizeFirstLetter(realm)}`,
        icon_url: zoneImgUrl
       },
       title: `${difficultyName} ${zoneName}`,
@@ -487,7 +487,7 @@ function sendEncounterParseResponse(message, responseZones, responseParses, zone
         medianPercentile = specs[j].historical_median.toFixed();
         avgPercentile = specs[j].historical_avg.toFixed();
         bestPs = specs[j].best_persecondamount.toLocaleString();
-        fastestKill = msToTime(specs[j].best_duration);
+        fastestKill = common.msToTime(specs[j].best_duration);
         var data = specs[j].data;
         for (var k = 0; k < data.length; k++) {
           //console.log(data[k]);
@@ -507,7 +507,7 @@ function sendEncounterParseResponse(message, responseZones, responseParses, zone
   if (logsFound) {
     allStarPoints = allStarPoints.toFixed(1);
   } else {
-    var errorMessage = `\`\`\`No logs for ${capitalizeFirstLetter(character)} @ ${capitalizeFirstLetter(realm)} found for ${difficultyName} ${encounterName}.\`\`\``;
+    var errorMessage = `\`\`\`No logs for ${common.capitalizeFirstLetter(character)} @ ${common.capitalizeFirstLetter(realm)} found for ${difficultyName} ${encounterName}.\`\`\``;
     message.channel.send(errorMessage);
     return;
   }
@@ -520,9 +520,9 @@ function sendEncounterParseResponse(message, responseZones, responseParses, zone
   }
 
   message.channel.send({embed: {
-     color: 0xccc05b,
+     color: embedColor,
      author: {
-       name: `Rankings for ${capitalizeFirstLetter(character)} @ ${capitalizeFirstLetter(realm)}`,
+       name: `Rankings for ${common.capitalizeFirstLetter(character)} @ ${common.capitalizeFirstLetter(realm)}`,
        icon_url: zoneImgUrl
       },
       title: `${difficultyName} ${encounterName}`,
@@ -580,19 +580,4 @@ function sendUsageResponse(message) {
     `raids\" for a list of supported raids. \nType \"${config.prefix}logs encounters <raid>\" for a list of encounter IDs.\`\`\``;
     message.channel.send(usage);
     return;
-}
-
-function capitalizeFirstLetter(string) {
-    var lower = string.toLowerCase();
-    return lower.charAt(0).toUpperCase() + lower.slice(1);
-}
-
-function msToTime(duration)
-{
-  var seconds = parseInt((duration/1000)%60);
-  var minutes = parseInt((duration/(1000*60))%60);
-
-  seconds = (seconds < 10) ? '0' + seconds : seconds;
-
-  return minutes + 'm ' + seconds + 's';
 }

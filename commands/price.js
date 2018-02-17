@@ -1,17 +1,12 @@
 var config = require('../config.json');
 var util = require('util');
 var common = require('..//util//common');
+var logging = require('..//util//logging');
 var request = require('request');
 var database = require('better-sqlite3');
 var blizzard = require('blizzard.js').initialize({ apikey: config.battlenet });
 var bookmark = require('./bookmarks');
-
-var chalk = require('chalk');
-var chalkLog = chalk.white;
-var chalkError = chalk.bold.red;
-
-var winston = require('winston');
-//winston.add(winston.transports.File, { filename: '../logs/price.log' });
+var moment = require('moment');
 
 var iconSize = 56;
 
@@ -28,6 +23,7 @@ var validRegions = ['us', 'eu', 'kr', 'tw'];
 var bilgewaterIconUrl = 'https://i.imgur.com/zjBxppj.png';
 var tsmIconUrl = 'https://i.imgur.com/OdfV93u.png';
 var iconRenderUrl = 'https://render-%s.worldofwarcraft.com/icons/56/%s.jpg';
+
 var tsmRequestItemsUrl = 'http://api.tradeskillmaster.com/v1/item/US/tichondrius?format=json&fields=Id%2CName&apiKey=%s';
 var tsmRequestItemDataUrl = 'http://api.tradeskillmaster.com/v1/item/%s/%s/%s?format=json&apiKey=%s';
 
@@ -35,7 +31,11 @@ var lastMessage;
 var gold;
 var silver;
 var copper;
+
 exports.run = function(client, message, args) {
+  message.reply("sorry, this command is currently inactive due to Blizzard API changes.");
+  return;
+  
   gold = client.emojis.find("name", "gold");
   silver = client.emojis.find("name", "silver");
   copper = client.emojis.find("name", "copper");
@@ -103,20 +103,41 @@ exports.run = function(client, message, args) {
     }
 
     itemId = -1;
-    console.log(`Opening items database...`);
-    console.log(`Searching item database for ${itemName.toLowerCase()}...`);
+
+    logging.priceLogger.log({
+      level: 'Info',
+      message: `(price.js:run) Opening items database. Searching for \'${itemName.toLowerCase()}\'...`
+    });
+
+    var nextAccess;
     db = new database('data/items.sqlite');
     try {
       var row = db.prepare(`SELECT * FROM items WHERE Name = ? COLLATE NOCASE`).get(itemName.toLowerCase());
       if(row) {
-        console.log(row);
+        logging.priceLogger.log({
+          level: 'Info',
+          message: `(price.js:run) Item found! ID: ${row.Id}, Name: ${row.Name}`
+        });
+
         itemId = row.Id;
+        nextAccess = new moment(row.LastAccess).add(1, 'hours');
+        var currentTime = new moment();
+
+        if (nextAccess.diff(currentTime, 'hours') < 1) {
+          logging.priceLogger.log({
+            level: 'Info',
+            message: `(price.js:run) Item (${row.Id}, ${row.Name}) was accessed less than an hour ago. Using cached data.`
+          });
+        }
       }
     }
     catch (e) {
       updateItemDB();
     }
-    console.log(chalkLog(`Closing items database...`));
+    logging.priceLogger.log({
+      level: 'Info',
+      message: `(price.js:run) Closing items database.`
+    });
     db.close();
 
     if (itemId === -1) {
@@ -161,6 +182,11 @@ function sendUsageResponse(message) {
 }
 
 exports.updateItemDB = function() {
+  logging.priceLogger.log({
+    level: 'Info',
+    message: '(price.js:updateItemDB) Updating items database...'
+  });
+
   var requestItems = util.format(tsmRequestItemsUrl, config.tsm);
 
   var options = {
@@ -175,11 +201,19 @@ exports.updateItemDB = function() {
 
 function processGetItem(err, res, body) {
   if (err) {
-    console.log('processGetItem: ' + err);
+    logging.priceLogger.log({
+      level: 'Error',
+      message: `(price.js:processGetItem) ${err}`
+    });
     return;
   }
 
   var responseItemData = JSON.parse(body);
+
+  logging.priceLogger.log({
+    level: 'Info',
+    message: `(price.js:processGetItem) ${body}`
+  });
 
   if (responseItemData.Name === undefined) {
       lastMessage.reply(`invalid realm/region combination, please try again.`);
@@ -188,9 +222,7 @@ function processGetItem(err, res, body) {
 
   blizzard.wow.item({ id: itemId, origin: 'us' })
   .then(response => {
-
-    //console.log(response.data);
-    var embedColor = 0x4d3f7a;
+    var embedColor = 0x4d3f7a; // Dark purple
 
     var marketValue = responseItemData.MarketValue;
     var minBuyout = responseItemData.MinBuyout;
@@ -264,38 +296,77 @@ function processGetItem(err, res, body) {
 
 function processItemUpdates(err, res, body) {
   if (err) {
-    console.log('processItemUpdates: ' + err);
+    logging.priceLogger.log({
+      level: 'Error',
+      message: `(price.js:processItemUpdates) ${err}`
+    });
     return;
   }
 
   var responseItems = JSON.parse(body);
-
-  console.log(`Opening items database...`);
+  logging.priceLogger.log({
+    level: 'Info',
+    message: `(price.js:processItemUpdates) Begin processItemUpdates. Opening items database...`
+  });
   db = new database('data/items.sqlite');
+
+  if (body.indexOf('error') > -1)
+  {
+    logging.priceLogger.log({
+      level: 'Error',
+      message: `(price.js:run) ${body}`
+    });
+  }
 
   // First check if table exists
   try {
-    var row = db.prepare(`SELECT TOP 1 FROM items WHERE Id = ?`).get(-1)
+    var row = db.prepare(`SELECT * FROM items WHERE Id = ?`).get(-1)
   }
   catch (e) {
-    winston.log(chalkLog((e)));
-    winston.log(chalkLog((`Creating items table`)));
+    logging.priceLogger.log({
+      level: 'Error',
+      message: `(price.js:processItemUpdates) ${e}. No items table found. Creating items table...`
+    });
 
-    db.prepare("CREATE TABLE IF NOT EXISTS items (Id INTEGER DEFAULT (-1), Name TEXT DEFAULT (''))").run();
+    db.prepare("CREATE TABLE IF NOT EXISTS items (Id INTEGER DEFAULT (-1), Name TEXT DEFAULT (''), " +
+    "Level INTEGER DEFAULT (1), Class TEXT DEFAULT (''), SubClass TEXT DEFAULT (''), " +
+    "VendorBuy INTEGER DEFAULT (0), VendorSell INTEGER DEFAULT (0), MarketValue INTEGER DEFAULT (0), " +
+    "MinBuyout INTEGER DEFAULT (0), Quantity INTEGER DEFAULT (0), NumAuctions INTEGER DEFAULT (0), " +
+    "HistoricalPrice INTEGER DEFAULT (0), RegionMarketAvg INTEGER DEFAULT (0), " +
+    "RegionMinBuyoutAvg INTEGER DEFAULT (0), RegionQuantity INTEGER DEFAULT (0), " +
+    "RegionHistoricalPrice INTEGER DEFAULT (0), RegionSaleAvg INTEGER DEFAULT (0), " +
+    "RegionAvgDailySold REAL DEFAULT (0), RegionSaleRate REAL DEFAULT (0), " +
+    "URL TEXT DEFAULT (''), LastAccess TEXT DEFAULT (''))").run();
   }
 
-  console.log("Begin processItemUpdates")
   for (var i = 0; i < responseItems.length; i++) {
     item = responseItems[i];
     var row = db.prepare(`SELECT * FROM items WHERE Id = ?`).get(item.Id)
     if(!row) {
-      db.prepare("INSERT INTO items (Id, Name) VALUES (?, ?)").run([item.Id, item.Name]);
-      console.log(chalkLog('Added new item to database: ' + item.Name));
+      var currentTime = new moment();
+      db.prepare("INSERT INTO items (Id, Name, Level, Class, SubClass, VendorBuy, VendorSell, " +
+      "MarketValue, MinBuyout, Quantity, NumAuctions, HistoricalPrice, RegionMarketAvg, " +
+      "RegionMinBuyoutAvg, RegionQuantity, RegionHistoricalPrice, RegionSaleAvg, RegionAvgDailySold, " +
+      "RegionSaleRate, URL, LastAccess) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
+      "?, ?, ?, ?)").run([item.Id, item.Name, item.Level, item.Class, item.SubClass, item.VendorBuy,
+      item.VendorSell, item.MarketValue, item.MinBuyout, item.Quantity, item.NumAuctions, item.HistoricalPrice,
+      item.RegionMarketAvg, item.RegionMinBuyoutAvg, item.RegionQuantity, item.RegionHistoricalPrice,
+      item.RegionSaleAvg, item.RegionAvgDailySold, item.RegionSaleRate, item.URL, currentTime.toISOString()]);
+      logging.priceLogger.log({
+        level: 'Info',
+        message: `(price.js:processItemUpdates) Added new item to database: ${item.Name}`
+      });
     }
   }
-  console.log("End processItemUpdates")
-  console.log(chalkLog(`Closing items database...`));
+  logging.priceLogger.log({
+    level: 'Info',
+    message: `(price.js:processItemUpdates) End processItemUpdates. Closing items database.`
+  });
   db.close();
+  logging.priceLogger.log({
+    level: 'Info',
+    message: '(price.js:updateItemDB) items database updated!'
+  });
 }
 
 function toGold(value) {

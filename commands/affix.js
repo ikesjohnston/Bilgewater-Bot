@@ -76,8 +76,8 @@ exports.run = function(client, message, args) {
   request(raiderIoRequestUrl, { json: true }, (err, res, body) => {
     if (err) {
       var owner = client.users.get(config.ownerID);
-      message.channel.send(`Something's not quite right... Complain to ${owner}`);
-      return console.log(err);
+      message.channel.send(`Something's not quite right with affixes... Complain to ${owner}`);
+      return;
     }
 
     responseAffixes = res.body;

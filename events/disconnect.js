@@ -1,5 +1,8 @@
-const chalk = require('chalk');
+var logging = require('..//util//logging');
 
 module.exports = client => {
-	console.log(chalk.bgBlue.black('Client disconnected!'));
+	botLogger.log({
+  	level: 'Warning',
+  	message: '(disconnect.js:client) Client disconnected!'
+	});
 }

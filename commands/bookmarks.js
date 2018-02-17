@@ -1,10 +1,9 @@
 var config = require('../config.json');
-var winston = require('winston');
-var chalk = require('chalk');
 var database = require('better-sqlite3');
 var pad = require('pad');
 var util = require('util');
 var common = require('../util/common');
+var logging = require('../util/logging');
 
 var db = null;
 
@@ -13,9 +12,11 @@ var character = '';
 var realm = '';
 var region = '';
 
+// These will interfere with other commands
 var blackList = ['encounters', 'raids', 'tot', 'soo', 'hm', 'brf', 'hfc', 'en', 'tov', 'nh', 'tos', 'abt'];
 
-var bookmarkLimit = 25; // Hardcoded for now, mostly to prevent message length overflow when printing bookmark list
+// Hardcoded for now, mostly to prevent message length overflow (2000 characters) when printing bookmark list
+var bookmarkLimit = 25;
 
 exports.run = function(client, message, args) {
 
@@ -56,93 +57,169 @@ exports.run = function(client, message, args) {
   } else {
     sendUsageResponse(message);
   }
-
 };
 
 function addBookmark(message, bookmark, character, realm, region) {
   if (blackList.includes(bookmark)) {
     message.reply(`Sorry, \'${bookmark}\' is a blacklisted bookmark name. Try using a different name.`);
+
+    logging.usersLogger.log({
+      level: 'Warning',
+      message: `(bookmarks.js:addBookmark) User ${message.author.id} requested to use a blacklisted bookmark name. Denying request.`
+    });
+
     return;
   }
 
   var bookmarkObject = {
     "bookmark": bookmark,
     "character": common.capitalizeFirstLetter(character),
-    "realm": common.capitalizeFirstLetter(realm),
+    "realm": common.capitalizeAllFirstLetters(realm),
     "region": region.toUpperCase()
   };
 
-  console.log(`Opening database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:addBookmark) Opening users database. Searching for user ${message.author.id}...`
+  });
+
   db = new database('data/users.sqlite');
   var bookmarks = '';
   var bookmarkArray = [];
   var bookmarkSlot = -1;
   try {
-    console.log(`Getting row for user ${message.author.id}`);
     var row = db.prepare(`SELECT * FROM users WHERE userId = ?`).get(message.author.id)
-    if (!row) {
+    if (!row) { // Users first bookmark?
       bookmarkArray.push(bookmarkObject);
       bookmarks = JSON.stringify(bookmarkArray);
-      console.log(`Inserting row for user ${message.author.id}`);
+
+      logging.usersLogger.log({
+        level: 'Info',
+        message: `(bookmarks.js:addBookmark) User not found! Inserting row for user ${message.author.id}`
+      });
+
       db.prepare('INSERT INTO users (userId, bookmarks) VALUES (?, ?)').run([message.author.id, bookmarks]);
+
       message.reply(`bookmark \"${bookmarkObject.bookmark}\" added for ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
       `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`);
-    } else
-    bookmarkArray = JSON.parse(row.bookmarks);
-    if (bookmarkArray.length >= bookmarkLimit) {
-      message.reply(`Sorry, you've reached the maximum amount of bookmarks. Please delete a bookmark before adding antoher.`);
-      return;
+
+      logging.usersLogger.log({
+        level: 'Info',
+        message: `(bookmarks.js:addBookmark) User ${message.author.id} added bookmark \"${bookmarkObject.bookmark}\" for ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
+        `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`
+      });
+    } else {
+      bookmarkArray = JSON.parse(row.bookmarks);
+      if (bookmarkArray.length >= bookmarkLimit) {
+        logging.usersLogger.log({
+          level: 'Warning',
+          message: `(bookmarks.js:addBookmark) ${message.author.id} is already at the bookmark limit. Denying request.`
+        });
+        message.reply(`Sorry, you've reached the maximum amount of bookmarks. Please delete a bookmark before adding antoher.`);
+        return;
+      }
+      bookmarkSlot = findBookmarkSlot(bookmarkArray, bookmark); // Check if bookmark already exists, update it if so
+      if (bookmarkSlot === -1) {
+        bookmarkArray.push(bookmarkObject);
+        bookmarks = JSON.stringify(bookmarkArray);
+
+        message.reply(`bookmark \"${bookmarkObject.bookmark}\" added for ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
+        `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`);
+
+        logging.usersLogger.log({
+          level: 'Info',
+          message: `(bookmarks.js:addBookmark) User ${message.author.id} added bookmark \"${bookmarkObject.bookmark}\" for ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
+          `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`
+        });
+      } else
+      {
+        bookmarkArray[bookmarkSlot].character = character;
+        bookmarkArray[bookmarkSlot].realm = realm;
+        bookmarkArray[bookmarkSlot].region = region;
+        bookmarks = JSON.stringify(bookmarkArray);
+
+        message.reply(`bookmark \"${bookmarkObject.bookmark}\" updated to ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
+        `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`);
+
+        logging.usersLogger.log({
+          level: 'Info',
+          message: `(bookmarks.js:addBookmark) User ${message.author.id} updated bookmark \"${bookmarkObject.bookmark}\" to ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
+          `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`
+        });
+      }
+      db.prepare(`UPDATE users SET bookmarks = ? WHERE userId = ?`).run([bookmarks, message.author.id]);
     }
-    bookmarkSlot = findBookmarkSlot(bookmarkArray, bookmark); // Check if bookmark already exists, update it if so
-    if (bookmarkSlot === -1) {
-      console.log(`Adding bookmark for user ${message.author.id}`);
-      bookmarkArray.push(bookmarkObject);
-      bookmarks = JSON.stringify(bookmarkArray);
-      message.reply(`bookmark \"${bookmarkObject.bookmark}\" added for ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
-      `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`);
-    } else
-    {
-      bookmarkArray[bookmarkSlot].character = character;
-      bookmarkArray[bookmarkSlot].realm = realm;
-      bookmarkArray[bookmarkSlot].region = region;
-      bookmarks = JSON.stringify(bookmarkArray);
-      message.reply(`bookmark \"${bookmarkObject.bookmark}\" updated to ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
-      `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`);
-    }
-    db.prepare(`UPDATE users SET bookmarks = ? WHERE userId = ?`).run([bookmarks, message.author.id]);
   }
   catch (e) {
-    console.log(e);
-    console.log(`Creating table`);
+    logging.usersLogger.log({
+      level: 'Warning',
+      message: '(bookmarks.js:addBookmark) No users table found. Creating users table...'
+    });
 
     db.prepare("CREATE TABLE IF NOT EXISTS users (userId TEXT DEFAULT (''), bookmarks TEXT DEFAULT (''), main TEXT DEFAULT (''))").run();
 
     bookmarkArray = [bookmarkObject];
     bookmarks = JSON.stringify(bookmarkArray);
-    console.log(`Inserting row for user ${message.author.id}`);
+
+    logging.usersLogger.log({
+      level: 'Info',
+      message: `(bookmarks.js:addBookmark) Inserting row for user ${message.author.id}`
+    });
+
     db.prepare("INSERT INTO users (userId, bookmarks) VALUES (?, ?)").run([message.author.id, bookmarks]);
+
     message.reply(`bookmark \"${bookmarkObject.bookmark}\" added for ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
     `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`);
+
+    logging.usersLogger.log({
+      level: 'Info',
+      message: `(bookmarks.js:addBookmark) User ${message.author.id} added bookmark \"${bookmarkObject.bookmark}\" for ${common.capitalizeFirstLetter(bookmarkObject.character)}, ` +
+      `${common.capitalizeFirstLetter(bookmarkObject.realm)}, ${bookmarkObject.region.toUpperCase()}`
+    });
   }
 
-  console.log(`Closing database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: '(bookmarks.js:addBookmark) Closing users database.'
+  });
+
   db.close();
 }
 
 function deleteBookmark(message, bookmark) {
-  console.log(`Opening database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: '(bookmarks.js:deleteBookmark) Opening users database...'
+  });
+
   db = new database('data/users.sqlite');
+
   var bookmarkSlot = -1;
+
   try {
-    console.log(`Getting row for user ${message.author.id}`);
+    logging.usersLogger.log({
+      level: 'Info',
+      message: `(bookmarks.js:deleteBookmark) Getting row for user ${message.author.id}...`
+    });
+
     var row = db.prepare(`SELECT * FROM users WHERE userId = ?`).get(message.author.id)
     if (!row) {
-      message.reply(`You don't have any bookmarks to delete.`);
+      message.reply(`you don't have any bookmarks to delete.`);
+
+      logging.usersLogger.log({
+        level: 'Warning',
+        message: `(bookmarks.js:deleteBookmark) User ${message.author.id} requested to delete a bookmark, but doesn't have any bookmarks stored. Denying request.`
+      });
     } else
     bookmarkArray = JSON.parse(row.bookmarks);
     bookmarkSlot = findBookmarkSlot(bookmarkArray, bookmark);
     if (bookmarkSlot === -1) {
-      message.reply(`You haven't bookmarked anything by that name.`);
+      message.reply(`you haven't bookmarked anything by that name.`);
+
+      logging.usersLogger.log({
+        level: 'Warning',
+        message: `(bookmarks.js:deleteBookmark) User ${message.author.id} requested to delete bookmark \'${bookmark}\', but doesn't have a bookmark by that name. Denying request.`
+      });
     } else
     {
       bookmarkArray.splice(bookmarkSlot, 1);
@@ -152,53 +229,112 @@ function deleteBookmark(message, bookmark) {
         db.prepare(`UPDATE users SET main = '' WHERE userId = ?`).run([message.author.id]);
       }
       message.reply(`Bookmark \'${bookmark}\' deleted!`);
+
+      logging.usersLogger.log({
+        level: 'Info',
+        message: `(bookmarks.js:deleteBookmark) User ${message.author.id} deleted bookmark \"${bookmark}\"`
+      });
     }
   }
   catch (e) {
-    console.log(e);
-    message.reply(`You don't have any bookmarks to delete.`);
+    logging.usersLogger.log({
+      level: 'Warning',
+      message: `(bookmarks.js:deleteBookmark) User ${message.author.id} requested to delete a bookmark, but doesn't have any ` +
+      `bookmarks stored. Denying request.`
+    });
   }
 
-  console.log(`Closing database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:deleteBookmark) Closing users database.`
+  });
+
   db.close();
 }
 
 function mainBookmark(message, bookmark) {
-  console.log(`Opening database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:mainBookmark) Opening users database...`
+  });
+
   db = new database('data/users.sqlite');
   try {
-    console.log(`Getting row for user ${message.author.id}`);
+    logging.usersLogger.log({
+      level: 'Info',
+      message: `(bookmarks.js:mainBookmark) Getting row for user ${message.author.id}...`
+    });
+
     var row = db.prepare(`SELECT * FROM users WHERE userId = ?`).get(message.author.id)
     if (!row) {
-      message.reply(`You don't have any bookmarks to set as a main.`);
+      message.reply(`you don't have any bookmarks to set as a main.`);
+
+      logging.usersLogger.log({
+        level: 'Warning',
+        message: `(bookmarks.js:mainBookmark) User ${message.author.id} requested to set a bookmark as main but does not have any ` +
+        `bookmarks stored. Denying request.`
+      });
     } else
     bookmarkArray = JSON.parse(row.bookmarks);
     bookmarkSlot = findBookmarkSlot(bookmarkArray, bookmark);
     if (bookmarkSlot === -1) {
       message.reply(`You haven't bookmarked anything by that name.`);
+
+      logging.usersLogger.log({
+        level: 'Warning',
+        message: `(bookmarks.js:mainBookmark) User ${message.author.id} requested to set bookmark \'${bookmark}\' as main but does not have a ` +
+        `bookmark stored by that name. Denying request`
+      });
     } else
     {
       db.prepare(`UPDATE users SET main = ? WHERE userId = ?`).run([bookmark, message.author.id]);
       message.reply(`Bookmark \'${bookmark}\' set as main!`);
+
+      logging.usersLogger.log({
+        level: 'Info',
+        message: `(bookmarks.js:mainBookmark) User ${message.author.id} set bookmark \"${bookmark}\" as main.`
+      });
     }
   }
   catch (e) {
-    console.log(e);
     message.reply(`You don't have any bookmarks to set as a main.`);
+
+    logging.usersLogger.log({
+      level: 'Warning',
+      message: `(bookmarks.js:mainBookmark) User ${message.author.id} requested to set a bookmark as main but does not have any ` +
+      `bookmarks stored. Denying request`
+    });
   }
 
-  console.log(`Closing database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:mainBookmark) Closing users database.`
+  });
+
   db.close();
 }
 
 function listBookmarks(message) {
-  console.log(`Opening database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:listBookmarks) Opening users database...`
+  });
   db = new database('data/users.sqlite');
   try {
-    console.log(`Getting row for user ${message.author.id}`);
+    logging.usersLogger.log({
+      level: 'Info',
+      message: `(bookmarks.js:listBookmarks) Getting row for user ${message.author.id}...`
+    });
     var row = db.prepare(`SELECT * FROM users WHERE userId = ?`).get(message.author.id)
     if (!row) {
-      message.reply(`I got what you need.... except for bookmarks, because you haven't added any yet.`);
+      message.reply(`you haven't added any bookmarks yet. Type \'${config.prefix}bookmarks\' ` +
+      `for usage info.`);
+
+      logging.usersLogger.log({
+        level: 'Warning',
+        message: `(bookmarks.js:listBookmarks) User ${message.author.id} requested a list of bookmarks but hasn't ` +
+        `bookmarked anything yet. Denying request.`
+      });
     } else {
       var main = row.main;
       var bookmarkString = '|Bilgewater Bookmarks===================================|\n';
@@ -212,7 +348,7 @@ function listBookmarks(message) {
           bookmarkStringTemp += '(*)';
         }
         bookmarkString += `\n|${pad(2, common.formatNumberLength(i + 1, 2))}|${pad(bookmarkStringTemp, 14)}|${pad(common.capitalizeFirstLetter(bookmarkArray[i].character), 14)}|` +
-        `${pad(common.capitalizeFirstLetter(bookmarkArray[i].realm), 14)}|${pad(bookmarkArray[i].region.toUpperCase(), 7)}|`;
+        `${pad(common.capitalizeFirstLetter(bookmarkArray[i].realm), 14)}|${pad(bookmarkArray[i].region, 7)}|`;
       }
       bookmarkString += '\n|=======================================================|';
       if(main != '') {
@@ -223,16 +359,32 @@ function listBookmarks(message) {
         var bookmarkStringFormatted = '```css\n' + bookmarkString + '```';
         message.channel.send(`${bookmarkStringFormatted}`);
       } else {
-        message.reply(`I got what you need.... except for bookmarks, because you haven't added any yet.`);
+        message.reply(`you haven't added any bookmarks yet. Use \'${config.prefix}bookmarks add ` +
+        `<bookmarkname> <character> <realm> <region>\' to add a bookmark.`);
+
+        logging.usersLogger.log({
+          level: 'Warning',
+          message: `(bookmarks.js:listBookmarks) User ${message.author.id} requested a list of bookmarks but hasn't ` +
+          `bookmarked anything yet. Denying request.`
+        });
       }
     }
   }
   catch (e) {
-    console.log(e);
-    message.reply(`I got what you need.... except for bookmarks, because you haven't added any yet.`);
+    message.reply(`you haven't added any bookmarks yet. Type \'${config.prefix}bookmarks\' ` +
+    `for usage info.`);
+
+    logging.usersLogger.log({
+      level: 'Warning',
+      message: `(bookmarks.js:listBookmarks) User ${message.author.id} requested a list of bookmarks but hasn't ` +
+      `bookmarked anything yet. Denying request.`
+    });
   }
 
-  console.log(`Closing database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:listBookmarks) Closing users database.`
+  });
   db.close();
 }
 
@@ -246,12 +398,8 @@ function findBookmarkSlot(bookmarkArray, bookmark) {
 }
 
 function validateBookmark(message, bookmark) {
-    if (!bookmark.match(/^[0-9a-z]+$/)) {
-      message.reply('bookmark name must be alphanumeric, please input a different name.');
-      return false;
-    }
-    if(bookmark.length > 10 || bookmark.length < 1) {
-      message.reply('bookmark name must be between 1 and 10 characters, please input a different name.');
+    if (!bookmark.match(/^[0-9a-z]+$/) ||bookmark.length > 10 || bookmark.length < 1) {
+      message.reply('bookmark name must be alphanumeric and between 1 and 10 characters, please input a different name.');
       return false;
     }
     return true;
@@ -270,25 +418,47 @@ function sendUsageResponse(message) {
 
 exports.findBookmark =  function(user, bookmark) {
   var foundBookmark = undefined;
-  console.log(`Opening database...`);
+
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:findBookmark) Opening users database...`
+  });
+
   db = new database('data/users.sqlite');
   try {
-    console.log(`Getting row for user ${user}`);
+    logging.usersLogger.log({
+      level: 'Info',
+      message: `(bookmarks.js:findBookmark) Getting row for user ${user}...`
+    });
     var row = db.prepare(`SELECT * FROM users WHERE userId = ?`).get(user);
     if (row) {
       bookmarkArray = JSON.parse(row.bookmarks);
       for (var i = 0; i < bookmarkArray.length; i++) {
         if (bookmarkArray[i].bookmark === bookmark) {
           foundBookmark = bookmarkArray[i];
+
+          logging.usersLogger.log({
+            level: 'Info',
+            message: `(bookmarks.js:findBookmark) Bookmark found for ${foundBookmark.character} ${foundBookmark.realm} ${foundBookmark.region}!`
+          });
+
           break;
         }
       }
     }
   }
   catch (e) {
-    console.log(e);
+    logging.usersLogger.log({
+      level: 'Warning',
+      message: `(bookmarks.js:findBookmark) User ${user} not found.`
+    });
   }
-  console.log(`Closing database...`);
+
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:findBookmark) Closing users database.`
+  });
+
   db.close();
 
   return foundBookmark;
@@ -296,27 +466,47 @@ exports.findBookmark =  function(user, bookmark) {
 
 exports.findMain =  function(user) {
   var foundMain = undefined;
-  console.log(`Opening database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:findMain) Opening users database...`
+  });
   db = new database('data/users.sqlite');
   try {
-    console.log(`Getting row for user ${user}`);
+    logging.usersLogger.log({
+      level: 'Info',
+      message: `(bookmarks.js:findMain) Getting row for user ${user}...`
+    });
     var row = db.prepare(`SELECT * FROM users WHERE userId = ?`).get(user);
     if (row) {
+
       var main = row.main;
       if (main != '') {
         bookmarkArray = JSON.parse(row.bookmarks);
         for (var i = 0; i < bookmarkArray.length; i++) {
           if (bookmarkArray[i].bookmark === main) {
             foundMain = bookmarkArray[i];
+
+            logging.usersLogger.log({
+              level: 'Info',
+              message: `(bookmarks.js:findMain) Main bookmark found for ${foundMain.character} ${foundMain.realm} ${foundMain.region}!`
+            });
+
+            break;
           }
         }
       }
     }
   }
   catch (e) {
-    console.log(e);
+    logging.usersLogger.log({
+      level: 'Warning',
+      message: `(bookmarks.js:findMain) User ${user} not found.`
+    });
   }
-  console.log(`Closing database...`);
+  logging.usersLogger.log({
+    level: 'Info',
+    message: `(bookmarks.js:findMain) Closing users database.`
+  });
   db.close();
 
   return foundMain;
