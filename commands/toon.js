@@ -15,12 +15,16 @@ var realm = '';
 var region = '';
 
 exports.run = function(client, message, args) {
+  common.startDebugTimer(`toonRequest${message.author.id}`);
+
   var bBookmarkFound = false;
   var optionalArgsStartIndex = 1;
   var bGetCollections = false;
   var bGetProfessions = false;
   var bGetAchievements = false;
+  var bGetFeed = false;
   var bGetMythicPlus = false;
+  var bGetHelp = false;
 
   // Default to US if no bookmark found and no region specified
   region = 'us';
@@ -55,6 +59,7 @@ exports.run = function(client, message, args) {
   if (!bBookmarkFound) {
     if(args.length < 2) {
       sendUsageResponse(message);
+      common.stopDebugTimer(`toonRequest${message.author.id}`);
       return;
     }
     optionalArgsStartIndex = 2;
@@ -69,10 +74,12 @@ exports.run = function(client, message, args) {
       if (i >= args.length - 1) {
         var errorMessage = `\`\`\`Region flag given but no region specified. Valid regions are us, eu, kr, and tw.\`\`\``;
         message.channel.send(errorMessage);
+        common.stopDebugTimer(`toonRequest${message.author.id}`);
         return;
       }
       i++;
       if (!battleNet.isValidRegion(args[i], message)) {
+        common.stopDebugTimer(`toonRequest${message.author.id}`);
         return;
       }
       region = args[i];
@@ -85,13 +92,20 @@ exports.run = function(client, message, args) {
     } else
     if ( arg === '-a' || arg === '-achievements') {
       //bGetAchievements = true; // WIP
-    } else if ( arg === '-m' || arg === '-mythicplus') {
+    } else
+    if ( arg === '-f' || arg === '-feed') {
+      bGetFeed = true;
+    } else
+    if ( arg === '-m' || arg === '-mythicplus') {
       bGetMythicPlus = true;
+    }
+    else
+    if ( arg === '-h' || arg === '-help') {
+      bGetHelp = true;
     }
   }
 
-  message.reply("fetching character data for you...");
-  if (!bGetCollections && !bGetProfessions && !bGetAchievements && !bGetMythicPlus) {
+  if (!bGetCollections && !bGetProfessions && !bGetAchievements && !bGetFeed && !bGetMythicPlus && !bGetHelp) {
     battleNet.sendCharacterResponse(character, realm, region, message);
   }
   if (bGetCollections) {
@@ -103,8 +117,14 @@ exports.run = function(client, message, args) {
   if (bGetAchievements) {
     battleNet.sendAchievementsResponse(character, realm, region, message);
   }
+  if (bGetFeed) {
+    battleNet.sendFeedResponse(character, realm, region, message);
+  }
   if (bGetMythicPlus) {
     raiderIo.sendMythicPlusResponse(character, realm, region, message);
+  }
+  if (bGetHelp) {
+    sendUsageResponse(message);
   }
 };
 
@@ -114,8 +134,8 @@ function sendUsageResponse(message) {
     `-m, -mythicplus   Display mythic+ dungeon statistics for the character\n` +
     `-c, -collections  Display collection statistics for the character\n` +
     `-p, -professions  Display professions statistics for the character\n` +
+    `-f, -feed  Display recent activity feed for the character\n` +
     `\n(*) = Default Value\n\nAdditional Info:\n\nMythic+ data is usually updated ` +
     `within the hour.\nAll other data is updated on logout.\`\`\``;
     message.channel.send(usage);
-    return;
 }

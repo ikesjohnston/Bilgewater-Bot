@@ -11,15 +11,16 @@ module.exports = client => {
 
 	client.user.setActivity(`${config.prefix}${config.game}`);
 
-	var jobList = schedule.scheduledJobs;
-
-	for(jobName in jobList){
-	  var job = 'jobList.' + jobName;
-	  eval(job+'.cancel()');
-	}
-
-	// Update Item DB every day at 5am
-	var j = schedule.scheduleJob('* 5 * * *', function(){
-  	price.updateItemDB();
-	});
+	// Auction API related functionality disabled for now
+	// var jobList = schedule.scheduledJobs;
+	//
+	// for(jobName in jobList){
+	//   var job = 'jobList.' + jobName;
+	//   eval(job+'.cancel()');
+	// }
+	//
+	// // Update Item DB every day at 5am
+	// var j = schedule.scheduleJob('* 5 * * *', function(){
+  // 	price.updateItemDB();
+	// });
 };

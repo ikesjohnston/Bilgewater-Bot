@@ -73,6 +73,7 @@ exports.getMythicPlusReport = function (runs, weeklyReport) {
 }
 
 exports.sendMythicPlusResponse = function (character, realm, region, message) {
+  message.reply("fetching Mythic+ data for you...");
   var requestRaiderIo = util.format(requestUrl, region, realm, character);
   requestRaiderIo += detailedUrl;
   request(requestRaiderIo, { json: true }, (err, res, body) => {
@@ -182,7 +183,7 @@ exports.sendMythicPlusResponse = function (character, realm, region, message) {
         var latestRun = mpRecentRuns[0];
         if (latestRun) {
           lastDungeonIconUrl = util.format(battleNet.iconRenderUrl, region, iconSize, dungeonIcons[latestRun.short_name.toLowerCase()]);
-          var dungeon = latestRun.dungeon.toLowerCase().replace(/ /g, '-').replace(/:/g, '');
+          var dungeon = latestRun.dungeon.toLowerCase().replace(/ /g, '-').replace(/:/g, '').replace(/'/g, '');
           lastDungeonBannerUrl = util.format(dungeonBannerUrl, dungeon);
         }
 

@@ -14,7 +14,7 @@ var region = '';
 var optionalArgStart = 0;
 
 exports.run = function(client, message, args) {
-  message.reply("sorry, this command is currently inactive due to Blizzard API changes.");
+  message.reply("sorry, this command is currently disabled due to WoW API changes.");
   return;
 
   var regionSpecified = false;

@@ -399,7 +399,7 @@ function sendRaidParseResponse(message, responseZones, responseParses, zoneId) {
     medPerfAvg = (medPerfSum / medPerfNum).toFixed(1)
     allStarPoints = allStarPoints.toFixed(1);
   } else {
-    var charSummary = util.format(charUrl, region, realm, character);
+    var charSummary = util.format(charLogsUrl, region, realm, character);
     var errorMessage = `\`\`\`No logs for ${common.capitalizeFirstLetter(character)} @ ${common.capitalizeFirstLetter(realm)} found for ${difficultyName} ${zoneName}.\`\`\``;
     message.channel.send(errorMessage);
     return;

@@ -3,7 +3,7 @@ var config = require('../config.json');
 exports.run = function(client, message, args) {
   if(message.author.id !== config.ownerID)
   {
-    message.channel.send("\`\`\`You do not have permission to do that.\`\`\`");
+    message.reply('sorry, you don\'t have permission to do that.');
     return;
   }
 

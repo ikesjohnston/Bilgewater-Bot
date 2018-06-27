@@ -33,9 +33,9 @@ var silver;
 var copper;
 
 exports.run = function(client, message, args) {
-  message.reply("sorry, this command is currently inactive due to Blizzard API changes.");
+  message.reply("sorry, this command is currently disabled due to WoW API changes.");
   return;
-  
+
   gold = client.emojis.find("name", "gold");
   silver = client.emojis.find("name", "silver");
   copper = client.emojis.find("name", "copper");
