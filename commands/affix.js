@@ -55,6 +55,8 @@ var thisWeek = [0, 0, 0];
 var thisWeekIndex = 0;
 
 exports.run = function(client, message, args) {
+  message.reply("sorry, this command is currently disabled until BFA Mythic+ goes live.");
+  return;
 
   if (args.length > 1) {
     sendUsageResponse(message);

@@ -1,6 +1,6 @@
 {
   "name": "BilgewaterBot",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "World of Warcraft Discord Bot",
   "main": "bot.js",
   "author": "Ike Johnston",

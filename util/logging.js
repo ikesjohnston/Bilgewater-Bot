@@ -1,26 +1,26 @@
 const winston = require('winston');
 const moment = require('moment');
 const common = require('./common');
-
-// Set up logs directory if it doesn't exist
 const fs = require( 'fs' );
 const path = require('path');
+
+// Set up logs directory if it doesn't exist
 const logsDir = 'logs';
 if ( !fs.existsSync( logsDir ) ) {
     fs.mkdirSync( logsDir );
 }
 
 //Start logger setup
-var { createLogger, format, transports } = require('winston');
-var { combine, timestamp, label, printf, colorize } = format;
+const { createLogger, format, transports } = require('winston');
+const { combine, timestamp, label, printf, colorize } = format;
 
-var tsFormat = () => moment().format('YYYY-MM-DD hh:mm:ss').trim();
+const tsFormat = () => moment().format('YYYY-MM-DD hh:mm:ss').trim();
 
-var logFormat = printf(info => {
+const logFormat = printf(info => {
   return `${tsFormat()} [${info.label}] ${info.level}: ${info.message}`;
 });
 
-var customLevels = {
+const customLevels = {
   levels: {
     Info: 0,
     Warning: 1,
@@ -43,6 +43,10 @@ exports.priceLogger = makeLog('price');
 exports.searchLogger = makeLog('search');
 // End logger setup
 
+/**
+ * Creates a new log file
+ * @param {String} logname The name of the log file (without the extension)
+ */
 function makeLog(logname)
 {
   logger = createLogger({

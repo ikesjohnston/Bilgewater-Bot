@@ -23,9 +23,9 @@ const encounterLogsUrl = '&boss=%s';
 
 const reportUrl = 'https://www.warcraftlogs.com/reports/%s#fight=%s&type=summary';
 
-const zoneIds = [4, 5, 6, 7, 8, 10, 12, 11, 13, 17];
+const zoneIds = [4, 5, 6, 7, 8, 10, 12, 11, 13, 17, 19];
 
-const zoneNames = ['tot', 'soo', 'hm', 'brf', 'hfc', 'en', 'tov', 'nh', 'tos', 'abt'];
+const zoneNames = ['tot', 'soo', 'hm', 'brf', 'hfc', 'en', 'tov', 'nh', 'tos', 'abt', 'uld'];
 
 const validDifficulties = ['n', 'h', 'm'];
 
@@ -55,6 +55,8 @@ var requestParsesUrl = '';
 var embedColor = 0xccc05b;
 
 exports.run = function(client, message, args) {
+  message.reply("sorry, this command is currently disabled due to Warcraft Logs API changes, a fix is incoming!");
+  return;
 
   var requestZones = requestZoneUrl.replace('%s', config.warcraftLogs);
 

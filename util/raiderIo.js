@@ -40,7 +40,7 @@ exports.keystoneAchievements = {
   'master': 11162
 };
 exports.getCharacterUrl = function(character, realm, region) {
-  return util.format(characterUrl, region, realm.replace(' ', '-'), character)
+  return util.format(characterUrl, region, realm.replace(' ', '-').replace('\'', ''), character)
 }
 
 exports.getRequestUrl = function(character, realm, region) {
@@ -109,7 +109,7 @@ exports.sendMythicPlusResponse = function (character, realm, region, message) {
         var characterNameTitle = battleNet.getNameAndTitle(response.data);
 
         var charArmoryUrl = battleNet.getArmoryUrl(character, realm, region);
-        var charRaiderIoUrl = util.format(characterUrl, region, realm.replace(' ', '-'), character);
+        var charRaiderIoUrl = util.format(characterUrl, region, realm.replace(' ', '-').replace('\'', ''), character);
 
         var achievementsCompleted = response.data.achievements.achievementsCompleted;
         var mythicPlusSummary = '';
@@ -244,7 +244,7 @@ exports.sendMythicPlusResponse = function (character, realm, region, message) {
            ],
            footer: {
              icon_url: iconUrl,
-             text: 'Mythic+ Performance Data | Powered by Raider.IO'
+             text: 'Mythic+ Performance Data via Raider.IO'
            }
          }});
       }).catch(error => {
