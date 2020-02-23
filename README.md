@@ -3,6 +3,7 @@
 Discord bot for displaying World of Warcraft statistics and information.
 
 ### Setup
+**Note: The WoW API has undergone major changes since the last update to this project. As a result, some or all of this bot's features may not currently be functional.**
 
 This project requires Node.js to run.
 
